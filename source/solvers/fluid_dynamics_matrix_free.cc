@@ -250,7 +250,7 @@ public:
 
     std::vector<std::vector<types::global_dof_index>> patches;
 
-    std::string patch_type = "cell";
+    std::string patch_type   = "cell";
     std::string closure_type = "full_closure";
 
     std::vector<std::set<typename DoFHandler<dim>::active_cell_iterator>>
