@@ -258,11 +258,13 @@ public:
 
     std::vector<std::set<typename DoFHandler<dim>::active_cell_iterator>>
       patch_to_cells;
-    // std::string cell_type = "vertex_star";
 
     // 1) build patches
     if (patch_type == Parameters::LinearSolver::MultigridSMPatchType::cell)
       {
+        AssertThrow(closure_type ==
+            Parameters::LinearSolver::MultigridSMClosureType::full_closure, ExcNotImplemented());
+
         for (const auto &cell : dof_handler.active_cell_iterators())
           {
             std::set<typename DoFHandler<dim>::active_cell_iterator> tmp;
@@ -305,6 +307,7 @@ public:
         AssertThrow(false, ExcNotImplemented());
       }
 
+    std::vector<std::vector<unsigned int>> patches_ptr;
 
     // 2) dof indices
     for (const auto &cells : patch_to_cells)
@@ -376,6 +379,7 @@ public:
           }
 
         std::vector<types::global_dof_index> current_patch;
+        std::vector<unsigned int> current_patch_ptr = {{0}};
 
         const auto add_indices = [&](const auto &local_dof_indices) {
           for (const auto i : local_dof_indices)
@@ -388,11 +392,14 @@ public:
           {
             add_indices(internal_indices[c]);
             add_indices(boundary_indices[c]);
+
+            current_patch_ptr.emplace_back(current_patch.size());
           }
 
         if (!current_patch.empty())
           {
             patches.emplace_back(current_patch);
+            patches_ptr.emplace_back(current_patch_ptr);
           }
       }
 
@@ -455,6 +462,32 @@ public:
 
     for (unsigned int b = 0; b < blocks.size(); ++b)
       {
+        if(false) // TODO: introduce parameter
+        {
+          const double tol = 1e-8;
+
+          for(unsigned int i = 0; i < patches_ptr[b][dim]; ++i)
+            for(unsigned int j = 0; j < patches_ptr[b][dim]; ++j)
+              if(i!=j)
+                blocks[b][i][j] = 0.0;
+
+          for(unsigned int i = 0; i < blocks[b].m(); ++i)
+            for(unsigned int j = 0; j < blocks[b].n(); ++j)
+                if(std::abs(blocks[b][i][j]) < tol)
+                  blocks[b][i][j] = 0.0;
+
+          if(false) // TODO: create statistics
+          {
+          unsigned int nnz = 0;
+
+          for(unsigned int i = 0; i < blocks[b].m(); ++i)
+            for(unsigned int j = 0; j < blocks[b].n(); ++j)
+                if(blocks[b][i][j] != 0.0)
+                  nnz++;
+          std::cout << blocks[b].m() * blocks[b].n() << " -> " << nnz << std::endl;
+          }
+        }
+
         this->blocks[b] =
           LAPACKFullMatrix<Number>(blocks[b].m(), blocks[b].n());
         this->blocks[b] = blocks[b];
