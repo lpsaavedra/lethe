@@ -541,7 +541,23 @@ public:
 
     for (unsigned int c = 0; c < patches.size(); ++c)
       {
-        patch_solve(c, src_ptr, dst_ptr);
+        if (schwarz_type == SchwarzType::additive)
+          {
+            patch_solve(c, dst_ptr, src_ptr);
+          }
+        else if (schwarz_type == SchwarzType::multiplicative)
+          {
+            // Update the residual vector
+            residual_internal.reinit(src_ptr, true);
+
+            global_sparse_matrix.vmult(residual_internal, dst_ptr);
+
+            residual_internal.sadd(-1.0, 1.0, src_ptr);
+
+            residual_internal.update_ghost_values();
+
+            patch_solve(c, dst_ptr, residual_internal);
+          }
       }
 
     src_ptr.zero_out_ghost_values();
@@ -555,7 +571,9 @@ public:
 
 private:
   void
-  patch_solve(unsigned int c, const VectorType &src_ptr, VectorType &dst_ptr) const
+  patch_solve(unsigned int      c,
+              VectorType       &dst_ptr,
+              const VectorType &src_ptr) const
   {
     Vector<Number> vector_src, vector_dst, vector_weights;
 
@@ -612,6 +630,9 @@ private:
 
   /// Internal source vector with correct ghosting.
   mutable VectorType src_internal;
+
+  /// Internal residual vector for multiplicative Schwarz.
+  mutable VectorType residual_internal;
 };
 
 
