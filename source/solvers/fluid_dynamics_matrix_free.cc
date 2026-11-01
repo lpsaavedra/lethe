@@ -257,8 +257,8 @@ public:
     std::vector<std::set<typename DoFHandler<dim>::active_cell_iterator>>
       vertex_to_cells(dof_handler.get_triangulation().n_vertices());
 
-    // std::string cell_type = "element_based";
-    std::string cell_type = "vertex_star";
+    std::string cell_type = "element_based";
+    // std::string cell_type = "vertex_star";
 
     if (cell_type == "element_based")
       {
