@@ -260,19 +260,19 @@ public:
 
     // 1) build patches
     if (cell_type == "element")
-      {        
+      {
         for (const auto &cell : dof_handler.active_cell_iterators())
-        {
-          std::set<typename DoFHandler<dim>::active_cell_iterator> tmp;
-          tmp.insert(cell);
-          patch_to_cells.emplace_back(tmp);
-        }
+          {
+            std::set<typename DoFHandler<dim>::active_cell_iterator> tmp;
+            tmp.insert(cell);
+            patch_to_cells.emplace_back(tmp);
+          }
       }
-    else if(cell_type == "element_closure")
+    else if (cell_type == "element_closure")
       {
         // TODO
       }
-    else if(cell_type == "vertex_closure")
+    else if (cell_type == "vertex_closure")
       {
         // TODO
       }
@@ -284,10 +284,12 @@ public:
         if (cells.empty())
           continue;
 
-        const auto & fe = dof_handler.get_fe();
+        const auto &fe = dof_handler.get_fe();
 
-        std::vector<std::set<types::global_dof_index>> internal_indices(fe.n_components());
-        std::vector<std::set<types::global_dof_index>> boundary_indices(fe.n_components());
+        std::vector<std::set<types::global_dof_index>> internal_indices(
+          fe.n_components());
+        std::vector<std::set<types::global_dof_index>> boundary_indices(
+          fe.n_components());
 
         // boundary patch indices
         for (const auto &cell : cells)
@@ -301,7 +303,9 @@ public:
                   cell->face(f)->get_dof_indices(local_dof_indices);
 
                   for (unsigned int i = 0; i < local_dof_indices.size(); ++i)
-                    boundary_indices[fe.face_system_to_component_index(i, f).first].insert(local_dof_indices[i]);
+                    boundary_indices[fe.face_system_to_component_index(i, f)
+                                       .first]
+                      .insert(local_dof_indices[i]);
                 }
           }
 
@@ -316,44 +320,44 @@ public:
               {
                 const unsigned int comp = fe.system_to_component_index(i).first;
 
-                if(boundary_indices[comp].find(local_dof_indices[i]) == boundary_indices[comp].end())
-              internal_indices[comp].insert(local_dof_indices[i]);
+                if (boundary_indices[comp].find(local_dof_indices[i]) ==
+                    boundary_indices[comp].end())
+                  internal_indices[comp].insert(local_dof_indices[i]);
               }
           }
 
-        if(closure_type == "none")
-        {
-          for(unsigned int c = 0; c <= dim; ++c)
-            boundary_indices[c].clear();
-        }
+        if (closure_type == "none")
+          {
+            for (unsigned int c = 0; c <= dim; ++c)
+              boundary_indices[c].clear();
+          }
         else if (closure_type == "u")
-        {
-          boundary_indices[dim].clear();
-        }
+          {
+            boundary_indices[dim].clear();
+          }
         else if (closure_type == "up")
-        {
-          // nothing to do
-        }
+          {
+            // nothing to do
+          }
 
         std::vector<types::global_dof_index> current_patch;
 
         const auto add_indices = [&](const auto &local_dof_indices) {
-
           for (const auto i : local_dof_indices)
             if (!constraints.is_constrained(i))
               current_patch.emplace_back(i);
         };
 
 
-        for(unsigned int c = 0; c <= dim; ++c)
+        for (unsigned int c = 0; c <= dim; ++c)
           {
             add_indices(internal_indices[c]);
             add_indices(boundary_indices[c]);
           }
 
-          if(!current_patch.empty())
-            patches.emplace_back(current_patch);
-        }
+        if (!current_patch.empty())
+          patches.emplace_back(current_patch);
+      }
 
     const IndexSet locally_owned_dofs =
       (mg_level == numbers::invalid_unsigned_int) ?
