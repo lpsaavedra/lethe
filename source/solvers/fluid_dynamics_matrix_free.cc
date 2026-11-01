@@ -275,18 +275,18 @@ public:
 
         for (const auto &cell : dof_handler.active_cell_iterators())
           for (const auto v : cell->vertex_indices())
-              vertex_to_cells[cell->vertex_index(v)].insert(cell);
+            vertex_to_cells[cell->vertex_index(v)].insert(cell);
 
-           
+
         for (const auto &cell : dof_handler.active_cell_iterators())
           {
             std::set<typename DoFHandler<dim>::active_cell_iterator> tmp;
 
             for (const auto v : cell->vertex_indices())
-              for(const auto & c : vertex_to_cells[cell->vertex_index(v)])
+              for (const auto &c : vertex_to_cells[cell->vertex_index(v)])
                 tmp.insert(c);
             patch_to_cells.emplace_back(tmp);
-          }   
+          }
       }
     else if (cell_type == "vertex_closure")
       {
@@ -363,10 +363,10 @@ public:
           {
             // nothing to do
           }
-    else
-      {
-        AssertThrow(false, ExcNotImplemented());
-      }
+        else
+          {
+            AssertThrow(false, ExcNotImplemented());
+          }
 
         std::vector<types::global_dof_index> current_patch;
 
@@ -385,7 +385,7 @@ public:
 
         if (!current_patch.empty())
           {
-          patches.emplace_back(current_patch);
+            patches.emplace_back(current_patch);
           }
       }
 
