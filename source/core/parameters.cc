@@ -3490,6 +3490,16 @@ namespace Parameters
                            defaults.mg_smoother_sm_type,
                            "Type of Schwarz smoother.");
 
+        declare_enum_entry(prm,
+                           "mg smoother schwarz patch type",
+                           defaults.mg_smoother_sm_patch_type,
+                           "Patch type for Schwarz smoother.");
+
+        declare_enum_entry(prm,
+                           "mg smoother schwarz closure type",
+                           defaults.mg_smoother_sm_closure_type,
+                           "Closure type for Schwarz smoother.");
+
         prm.declare_entry("mg smoother chebyshev degree",
                           Patterns::Tools::Convert<unsigned int>::to_string(
                             defaults.mg_smoother_chebyshev_degree),
@@ -3686,6 +3696,13 @@ namespace Parameters
 
         this->mg_smoother_sm_type =
           string_to_enum<MultigridSMType>(prm.get("mg smoother schwarz type"));
+
+        this->mg_smoother_sm_patch_type = string_to_enum<MultigridSMPatchType>(
+          prm.get("mg smoother schwarz patch type"));
+
+        this->mg_smoother_sm_closure_type =
+          string_to_enum<MultigridSMClosureType>(
+            prm.get("mg smoother schwarz closure type"));
 
         mg_smoother_chebyshev_degree =
           prm.get_integer("mg smoother chebyshev degree");

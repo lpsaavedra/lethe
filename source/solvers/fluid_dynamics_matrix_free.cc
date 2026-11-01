@@ -229,6 +229,12 @@ public:
     , schwarz_type(
         simulation_parameters.linear_solver.at(PhysicsID::fluid_dynamics)
           .mg_smoother_sm_type)
+    , patch_type(
+        simulation_parameters.linear_solver.at(PhysicsID::fluid_dynamics)
+          .mg_smoother_sm_patch_type)
+    , closure_type(
+        simulation_parameters.linear_solver.at(PhysicsID::fluid_dynamics)
+          .mg_smoother_sm_closure_type)
   {}
 
   /**
@@ -250,15 +256,12 @@ public:
 
     std::vector<std::vector<types::global_dof_index>> patches;
 
-    std::string patch_type   = "cell";
-    std::string closure_type = "full_closure";
-
     std::vector<std::set<typename DoFHandler<dim>::active_cell_iterator>>
       patch_to_cells;
     // std::string cell_type = "vertex_star";
 
     // 1) build patches
-    if (patch_type == "cell")
+    if (patch_type == Parameters::LinearSolver::MultigridSMPatchType::cell)
       {
         for (const auto &cell : dof_handler.active_cell_iterators())
           {
@@ -267,7 +270,8 @@ public:
             patch_to_cells.emplace_back(tmp);
           }
       }
-    else if (patch_type == "cell_neighborhood")
+    else if (patch_type ==
+             Parameters::LinearSolver::MultigridSMPatchType::cell_neighborhood)
       {
         std::vector<std::set<typename DoFHandler<dim>::active_cell_iterator>>
           vertex_to_cells(dof_handler.get_triangulation().n_vertices());
@@ -287,7 +291,8 @@ public:
             patch_to_cells.emplace_back(tmp);
           }
       }
-    else if (patch_type == "vertex_star")
+    else if (patch_type ==
+             Parameters::LinearSolver::MultigridSMPatchType::vertex_star)
       {
         patch_to_cells.resize(dof_handler.get_triangulation().n_vertices());
 
@@ -349,16 +354,19 @@ public:
               }
           }
 
-        if (closure_type == "interior")
+        if (closure_type ==
+            Parameters::LinearSolver::MultigridSMClosureType::interior)
           {
             for (unsigned int c = 0; c <= dim; ++c)
               boundary_indices[c].clear();
           }
-        else if (closure_type == "velocity_closure")
+        else if (closure_type == Parameters::LinearSolver::
+                                   MultigridSMClosureType::velocity_closure)
           {
             boundary_indices[dim].clear();
           }
-        else if (closure_type == "full_closure")
+        else if (closure_type ==
+                 Parameters::LinearSolver::MultigridSMClosureType::full_closure)
           {
             // nothing to do
           }
@@ -597,6 +605,12 @@ private:
 
   /// Schwarz type.
   const Parameters::LinearSolver::MultigridSMType schwarz_type;
+
+  /// Patch type
+  const Parameters::LinearSolver::MultigridSMPatchType patch_type;
+
+  /// Closure type
+  const Parameters::LinearSolver::MultigridSMClosureType closure_type;
 
   /// Internal destination vector with correct ghosting.
   mutable VectorType dst_internal;

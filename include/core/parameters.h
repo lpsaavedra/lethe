@@ -1692,6 +1692,27 @@ namespace Parameters
 
     MultigridSMType mg_smoother_sm_type = MultigridSMType::additive;
 
+    /// Schwarz method patch type.
+    enum MultigridSMPatchType : std::uint8_t
+    {
+      cell,
+      cell_neighborhood,
+      vertex_star
+    };
+
+    MultigridSMPatchType mg_smoother_sm_patch_type = MultigridSMPatchType::cell;
+
+    /// Schwarz method closure type
+    enum MultigridSMClosureType : std::uint8_t
+    {
+      interior,
+      velocity_closure,
+      full_closure
+    };
+
+    MultigridSMClosureType mg_smoother_sm_closure_type =
+      MultigridSMClosureType::full_closure;
+
     /// Chebyshev smoother polynomial degree
     unsigned int mg_smoother_chebyshev_degree = 3;
 
