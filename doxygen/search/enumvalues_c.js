@@ -1,6 +1,6 @@
 var searchData=
 [
-  ['magnetic_5ffield_0',['magnetic_field',['../namespaceParameters.html#ae2409eaf7621323659ebf4a3ec3c77d2a8732c340b849ed4f600a10f719097755',1,'Parameters::magnetic_field'],['../multiphysics_8h.html#a2cbb04ef215561a69b48772159577fdda8732c340b849ed4f600a10f719097755',1,'magnetic_field:&#160;multiphysics.h'],['../namespaceBoundaryConditions.html#a07df76d63cde5cb5bcbea0d9c25a54b8a8732c340b849ed4f600a10f719097755',1,'BoundaryConditions::magnetic_field']]],
+  ['magnetic_5ffield_0',['magnetic_field',['../namespaceBoundaryConditions.html#a07df76d63cde5cb5bcbea0d9c25a54b8a8732c340b849ed4f600a10f719097755',1,'BoundaryConditions::magnetic_field'],['../multiphysics_8h.html#a2cbb04ef215561a69b48772159577fdda8732c340b849ed4f600a10f719097755',1,'magnetic_field:&#160;multiphysics.h'],['../namespaceParameters.html#ae2409eaf7621323659ebf4a3ec3c77d2a8732c340b849ed4f600a10f719097755',1,'Parameters::magnetic_field']]],
   ['magnetic_5fimag_1',['magnetic_imag',['../classTimeHarmonicMaxwellScratchData.html#af252bfdb1743828b05de279be1a0f0e3a245a54c861f8f7a48deb93d6b2a4477a',1,'TimeHarmonicMaxwellScratchData']]],
   ['magnetic_5freal_2',['magnetic_real',['../classTimeHarmonicMaxwellScratchData.html#af252bfdb1743828b05de279be1a0f0e3a6b9d3f03c27f219d71ee7f8c430a0b20',1,'TimeHarmonicMaxwellScratchData']]],
   ['manual_3',['manual',['../namespaceParameters.html#aea64bd5414c051b692d8df44e5ccd369a3c78b35502b2693fefdfc51cba3a53a5',1,'Parameters']]],
