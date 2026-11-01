@@ -250,6 +250,9 @@ public:
     const std::shared_ptr<const Utilities::MPI::Partitioner> &partitioner,
     const unsigned int                                        mg_level)
   {
+    // TODO: make work (1) in parallel, (2) on multigrid levels, (3) on
+    // locally refined meshes
+
     this->global_sparse_matrix.copy_from(global_sparse_matrix);
 
     this->timer.enter_subsection("asm::indices");
