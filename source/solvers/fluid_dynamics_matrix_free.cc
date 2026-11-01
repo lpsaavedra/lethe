@@ -250,16 +250,15 @@ public:
 
     std::vector<std::vector<types::global_dof_index>> patches;
 
-    std::string cell_type = "element";
-
-    std::string closure_type = "up";
+    std::string patch_type = "cell";
+    std::string closure_type = "full_closure";
 
     std::vector<std::set<typename DoFHandler<dim>::active_cell_iterator>>
       patch_to_cells;
     // std::string cell_type = "vertex_star";
 
     // 1) build patches
-    if (cell_type == "element")
+    if (patch_type == "cell")
       {
         for (const auto &cell : dof_handler.active_cell_iterators())
           {
@@ -268,7 +267,7 @@ public:
             patch_to_cells.emplace_back(tmp);
           }
       }
-    else if (cell_type == "element_closure")
+    else if (patch_type == "cell_neighborhood")
       {
         std::vector<std::set<typename DoFHandler<dim>::active_cell_iterator>>
           vertex_to_cells(dof_handler.get_triangulation().n_vertices());
@@ -288,7 +287,7 @@ public:
             patch_to_cells.emplace_back(tmp);
           }
       }
-    else if (cell_type == "vertex_closure")
+    else if (patch_type == "vertex_star")
       {
         patch_to_cells.resize(dof_handler.get_triangulation().n_vertices());
 
@@ -350,16 +349,16 @@ public:
               }
           }
 
-        if (closure_type == "none")
+        if (closure_type == "interior")
           {
             for (unsigned int c = 0; c <= dim; ++c)
               boundary_indices[c].clear();
           }
-        else if (closure_type == "u")
+        else if (closure_type == "velocity_closure")
           {
             boundary_indices[dim].clear();
           }
-        else if (closure_type == "up")
+        else if (closure_type == "full_closure")
           {
             // nothing to do
           }
