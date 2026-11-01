@@ -224,6 +224,13 @@ private:
     symm
   };
 
+  /// Schwarz method type.
+  enum SchwarzType : std::uint8_t
+  {
+    additive,
+    multiplicative
+  };
+
 public:
   /// Value type.
   using Number = typename VectorType::value_type;
@@ -233,24 +240,24 @@ public:
    */
   PreconditionASM()
     : weighting_type(WeightingType::left)
+    , schwarz_type(SchwarzType::additive)
   {}
 
   /**
    * @brief Initialize inverses of blocks.
    */
-  template <int dim,
-            typename GlobalSparseMatrixType,
-            typename GlobalSparsityPattern,
-            typename Number>
+  template <int dim, typename GlobalSparsityPattern, typename Number>
   void
   initialize(
-    const DoFHandler<dim>           &dof_handler,
-    const GlobalSparseMatrixType    &global_sparse_matrix,
-    const GlobalSparsityPattern     &global_sparsity_pattern,
-    const AffineConstraints<Number> &constraints,
+    const DoFHandler<dim>                &dof_handler,
+    const TrilinosWrappers::SparseMatrix &global_sparse_matrix,
+    const GlobalSparsityPattern          &global_sparsity_pattern,
+    const AffineConstraints<Number>      &constraints,
     const std::shared_ptr<const Utilities::MPI::Partitioner> &partitioner,
     const unsigned int                                        mg_level)
   {
+    this->global_sparse_matrix.copy_from(global_sparse_matrix);
+
     this->timer.enter_subsection("asm::indices");
 
     std::vector<std::vector<types::global_dof_index>> patches;
@@ -532,39 +539,9 @@ public:
       src_internal.copy_locally_owned_data_from(src);
     src_ptr.update_ghost_values();
 
-    Vector<Number> vector_src, vector_dst, vector_weights;
-
     for (unsigned int c = 0; c < patches.size(); ++c)
       {
-        const unsigned int dofs_per_cell = patches[c].size();
-
-        vector_src.reinit(dofs_per_cell);
-        vector_dst.reinit(dofs_per_cell);
-        if (weighting_type != WeightingType::none)
-          vector_weights.reinit(dofs_per_cell);
-
-        for (unsigned int i = 0; i < dofs_per_cell; ++i)
-          vector_src[i] = src_ptr.local_element(patches[c][i]);
-
-        if (weighting_type != WeightingType::none)
-          for (unsigned int i = 0; i < dofs_per_cell; ++i)
-            vector_weights[i] = weights.local_element(patches[c][i]);
-
-        if (weighting_type == WeightingType::symm ||
-            weighting_type == WeightingType::right)
-          for (unsigned int i = 0; i < dofs_per_cell; ++i)
-            vector_src[i] *= vector_weights[i];
-
-        blocks[c].solve(vector_src);
-        vector_dst = vector_src;
-
-        if (weighting_type == WeightingType::symm ||
-            weighting_type == WeightingType::left)
-          for (unsigned int i = 0; i < dofs_per_cell; ++i)
-            vector_dst[i] *= vector_weights[i];
-
-        for (unsigned int i = 0; i < dofs_per_cell; ++i)
-          dst_ptr.local_element(patches[c][i]) += vector_dst[i];
+        patch_solve(c, src_ptr, dst_ptr);
       }
 
     src_ptr.zero_out_ghost_values();
@@ -577,17 +554,58 @@ public:
   }
 
 private:
+  void
+  patch_solve(unsigned int c, const VectorType &src_ptr, VectorType &dst_ptr) const
+  {
+    Vector<Number> vector_src, vector_dst, vector_weights;
+
+    const unsigned int dofs_per_cell = patches[c].size();
+
+    vector_src.reinit(dofs_per_cell);
+    vector_dst.reinit(dofs_per_cell);
+    if (weighting_type != WeightingType::none)
+      vector_weights.reinit(dofs_per_cell);
+
+    for (unsigned int i = 0; i < dofs_per_cell; ++i)
+      vector_src[i] = src_ptr.local_element(patches[c][i]);
+
+    if (weighting_type != WeightingType::none)
+      for (unsigned int i = 0; i < dofs_per_cell; ++i)
+        vector_weights[i] = weights.local_element(patches[c][i]);
+
+    if (weighting_type == WeightingType::symm ||
+        weighting_type == WeightingType::right)
+      for (unsigned int i = 0; i < dofs_per_cell; ++i)
+        vector_src[i] *= vector_weights[i];
+
+    blocks[c].solve(vector_src);
+    vector_dst = vector_src;
+
+    if (weighting_type == WeightingType::symm ||
+        weighting_type == WeightingType::left)
+      for (unsigned int i = 0; i < dofs_per_cell; ++i)
+        vector_dst[i] *= vector_weights[i];
+
+    for (unsigned int i = 0; i < dofs_per_cell; ++i)
+      dst_ptr.local_element(patches[c][i]) += vector_dst[i];
+  }
   /// DoF indices of patches.
   std::vector<std::vector<unsigned int>> patches;
 
   /// Inverse of patch matrices.
   std::vector<LAPACKFullMatrix<Number>> blocks;
 
+  /// Local copy of sparse matrix
+  TrilinosWrappers::SparseMatrix global_sparse_matrix;
+
   /// Weights.
   mutable VectorType weights;
 
   /// Weighting type.
   const WeightingType weighting_type;
+
+  /// Schwarz type.
+  const SchwarzType schwarz_type;
 
   /// Internal destination vector with correct ghosting.
   mutable VectorType dst_internal;
