@@ -3480,6 +3480,16 @@ namespace Parameters
                            "Preconditioner of smoother.",
                            deprecated_mg_smoother_preconditioner_type_names);
 
+        declare_enum_entry(prm,
+                           "mg smoother schwarz weighting type",
+                           defaults.mg_smoother_sm_weighting_type,
+                           "Weighting type for Schwarz smoother.");
+
+        declare_enum_entry(prm,
+                           "mg smoother schwarz type",
+                           defaults.mg_smoother_sm_type,
+                           "Type of Schwarz smoother.");
+
         prm.declare_entry("mg smoother chebyshev degree",
                           Patterns::Tools::Convert<unsigned int>::to_string(
                             defaults.mg_smoother_chebyshev_degree),
@@ -3669,6 +3679,13 @@ namespace Parameters
             prm.get("mg smoother preconditioner type"),
             deprecated_mg_smoother_preconditioner_type_names,
             "mg smoother preconditioner type");
+
+        this->mg_smoother_sm_weighting_type =
+          string_to_enum<MultigridSMWeightingType>(
+            prm.get("mg smoother schwarz weighting type"));
+
+        this->mg_smoother_sm_type =
+          string_to_enum<MultigridSMType>(prm.get("mg smoother schwarz type"));
 
         mg_smoother_chebyshev_degree =
           prm.get_integer("mg smoother chebyshev degree");

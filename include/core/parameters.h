@@ -1671,6 +1671,27 @@ namespace Parameters
     MultigridSmootherPreconditionerType mg_smoother_preconditioner_type =
       MultigridSmootherPreconditionerType::inverse_diagonal;
 
+    /// Weighting type for ASM
+    enum MultigridSMWeightingType : std::uint8_t
+    {
+      none,
+      left,
+      right,
+      symm
+    };
+
+    MultigridSMWeightingType mg_smoother_sm_weighting_type =
+      MultigridSMWeightingType::left;
+
+    /// Schwarz method type.
+    enum MultigridSMType : std::uint8_t
+    {
+      additive,
+      multiplicative
+    };
+
+    MultigridSMType mg_smoother_sm_type = MultigridSMType::additive;
+
     /// Chebyshev smoother polynomial degree
     unsigned int mg_smoother_chebyshev_degree = 3;
 

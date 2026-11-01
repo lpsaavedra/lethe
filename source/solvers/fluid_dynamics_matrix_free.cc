@@ -214,23 +214,6 @@ private:
 template <typename VectorType>
 class PreconditionASM : public PreconditionBase<VectorType>
 {
-private:
-  /// Weighting type.
-  enum WeightingType : std::uint8_t
-  {
-    none,
-    left,
-    right,
-    symm
-  };
-
-  /// Schwarz method type.
-  enum SchwarzType : std::uint8_t
-  {
-    additive,
-    multiplicative
-  };
-
 public:
   /// Value type.
   using Number = typename VectorType::value_type;
@@ -238,9 +221,14 @@ public:
   /**
    * @brief Constructor.
    */
-  PreconditionASM()
-    : weighting_type(WeightingType::left)
-    , schwarz_type(SchwarzType::additive)
+  template <int dim>
+  PreconditionASM(const SimulationParameters<dim> &simulation_parameters)
+    : weighting_type(
+        simulation_parameters.linear_solver.at(PhysicsID::fluid_dynamics)
+          .mg_smoother_sm_weighting_type)
+    , schwarz_type(
+        simulation_parameters.linear_solver.at(PhysicsID::fluid_dynamics)
+          .mg_smoother_sm_type)
   {}
 
   /**
@@ -492,7 +480,8 @@ public:
 
     this->timer.leave_subsection("asm::invert");
 
-    if (weighting_type != WeightingType::none)
+    if (weighting_type !=
+        Parameters::LinearSolver::MultigridSMWeightingType::none)
       {
         this->timer.enter_subsection("asm::weight");
         Vector<Number> vector_weights;
@@ -512,8 +501,10 @@ public:
 
         weights.compress(VectorOperation::add);
         for (auto &i : weights)
-          i = (weighting_type == WeightingType::symm) ? std::sqrt(1.0 / i) :
-                                                        (1.0 / i);
+          i = (weighting_type ==
+               Parameters::LinearSolver::MultigridSMWeightingType::symm) ?
+                std::sqrt(1.0 / i) :
+                (1.0 / i);
         weights.update_ghost_values();
 
         this->timer.leave_subsection("asm::weight");
@@ -541,11 +532,12 @@ public:
 
     for (unsigned int c = 0; c < patches.size(); ++c)
       {
-        if (schwarz_type == SchwarzType::additive)
+        if (schwarz_type == Parameters::LinearSolver::MultigridSMType::additive)
           {
             patch_solve(c, dst_ptr, src_ptr);
           }
-        else if (schwarz_type == SchwarzType::multiplicative)
+        else if (schwarz_type ==
+                 Parameters::LinearSolver::MultigridSMType::multiplicative)
           {
             // Update the residual vector
             residual_internal.reinit(src_ptr, true);
@@ -581,26 +573,32 @@ private:
 
     vector_src.reinit(dofs_per_cell);
     vector_dst.reinit(dofs_per_cell);
-    if (weighting_type != WeightingType::none)
+    if (weighting_type !=
+        Parameters::LinearSolver::MultigridSMWeightingType::none)
       vector_weights.reinit(dofs_per_cell);
 
     for (unsigned int i = 0; i < dofs_per_cell; ++i)
       vector_src[i] = src_ptr.local_element(patches[c][i]);
 
-    if (weighting_type != WeightingType::none)
+    if (weighting_type !=
+        Parameters::LinearSolver::MultigridSMWeightingType::none)
       for (unsigned int i = 0; i < dofs_per_cell; ++i)
         vector_weights[i] = weights.local_element(patches[c][i]);
 
-    if (weighting_type == WeightingType::symm ||
-        weighting_type == WeightingType::right)
+    if (weighting_type ==
+          Parameters::LinearSolver::MultigridSMWeightingType::symm ||
+        weighting_type ==
+          Parameters::LinearSolver::MultigridSMWeightingType::right)
       for (unsigned int i = 0; i < dofs_per_cell; ++i)
         vector_src[i] *= vector_weights[i];
 
     blocks[c].solve(vector_src);
     vector_dst = vector_src;
 
-    if (weighting_type == WeightingType::symm ||
-        weighting_type == WeightingType::left)
+    if (weighting_type ==
+          Parameters::LinearSolver::MultigridSMWeightingType::symm ||
+        weighting_type ==
+          Parameters::LinearSolver::MultigridSMWeightingType::left)
       for (unsigned int i = 0; i < dofs_per_cell; ++i)
         vector_dst[i] *= vector_weights[i];
 
@@ -620,10 +618,10 @@ private:
   mutable VectorType weights;
 
   /// Weighting type.
-  const WeightingType weighting_type;
+  const Parameters::LinearSolver::MultigridSMWeightingType weighting_type;
 
   /// Schwarz type.
-  const SchwarzType schwarz_type;
+  const Parameters::LinearSolver::MultigridSMType schwarz_type;
 
   /// Internal destination vector with correct ghosting.
   mutable VectorType dst_internal;
@@ -2060,7 +2058,8 @@ MFNavierStokesPreconditionGMGBase<dim>::initialize()
         {
           if (mg_smoother_preconditioners[level] == nullptr)
             mg_smoother_preconditioners[level] =
-              std::make_shared<PreconditionASM<MGVectorType>>();
+              std::make_shared<PreconditionASM<MGVectorType>>(
+                this->simulation_parameters);
 
           dynamic_cast<PreconditionASM<MGVectorType> *>(
             mg_smoother_preconditioners[level].get())
