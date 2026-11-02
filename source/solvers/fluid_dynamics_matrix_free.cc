@@ -48,6 +48,95 @@
 #include <cmath>
 #include <exception>
 
+namespace
+{
+  FullMatrix<double>
+  compute_schur_complement_matrix(const FullMatrix<double>        &matrix,
+                                  const std::vector<unsigned int> &patch_ptr,
+                                  const bool create_block_diagonal)
+  {
+    const unsigned int dim = patch_ptr.size() - 2;
+    const unsigned int n_u = patch_ptr[dim];
+    const unsigned int n   = matrix.m();
+    const unsigned int n_p = n - n_u;
+
+    AssertDimension(matrix.m(), matrix.n());
+    AssertIndexRange(n_u, n);
+
+    // Extract A, B, C, D.
+    FullMatrix<double> A(n_u, n_u);
+    FullMatrix<double> B(n_u, n_p);
+    FullMatrix<double> C(n_p, n_u);
+    FullMatrix<double> D(n_p, n_p);
+
+    for (unsigned int i = 0; i < n_u; ++i)
+      for (unsigned int j = 0; j < n_u; ++j)
+        A(i, j) = matrix(i, j);
+
+    for (unsigned int i = 0; i < n_u; ++i)
+      for (unsigned int j = 0; j < n_p; ++j)
+        B(i, j) = matrix(i, n_u + j);
+
+    for (unsigned int i = 0; i < n_p; ++i)
+      for (unsigned int j = 0; j < n_u; ++j)
+        C(i, j) = matrix(n_u + i, j);
+
+    for (unsigned int i = 0; i < n_p; ++i)
+      for (unsigned int j = 0; j < n_p; ++j)
+        D(i, j) = matrix(n_u + i, n_u + j);
+
+    // Compute X = A^{-1} B using LU factorization.
+    LAPACKFullMatrix<double> A_lu(n_u, n_u);
+    A_lu.copy_from(A);
+    A_lu.compute_lu_factorization();
+
+    FullMatrix<double> X(n_u, n_p);
+
+    for (unsigned int j = 0; j < n_p; ++j)
+      {
+        Vector<double> rhs(n_u);
+
+        for (unsigned int i = 0; i < n_u; ++i)
+          rhs[i] = B(i, j);
+
+        A_lu.solve(rhs);
+
+        for (unsigned int i = 0; i < n_u; ++i)
+          X(i, j) = rhs[i];
+      }
+
+    // Compute CX = C * X.
+    FullMatrix<double> CX(n_p, n_p);
+    C.mmult(CX, X);
+
+    // Compute S = D - C * A^{-1} * B.
+    FullMatrix<double> S(n_p, n_p);
+    S.copy_from(D);
+    S.add(-1.0, CX);
+
+    // Copy original matrix.
+    FullMatrix<double> result(matrix);
+
+    // Zero lower-left block C.
+    for (unsigned int i = n_u; i < n; ++i)
+      for (unsigned int j = 0; j < n_u; ++j)
+        result(i, j) = 0.0;
+
+    // Optionally zero upper-right block B.
+    if (create_block_diagonal)
+      for (unsigned int i = 0; i < n_u; ++i)
+        for (unsigned int j = n_u; j < n; ++j)
+          result(i, j) = 0.0;
+
+    // Replace D with Schur complement S.
+    for (unsigned int i = 0; i < n_p; ++i)
+      for (unsigned int j = 0; j < n_p; ++j)
+        result(n_u + i, n_u + j) = S(i, j);
+
+    return result;
+  }
+} // namespace
+
 /**
  * @brief A base class of preconditioners used by the smoother.
  */
@@ -265,8 +354,10 @@ public:
     // 1) build patches
     if (patch_type == Parameters::LinearSolver::MultigridSMPatchType::cell)
       {
-        AssertThrow(closure_type ==
-            Parameters::LinearSolver::MultigridSMClosureType::full_closure, ExcNotImplemented());
+        AssertThrow(
+          closure_type ==
+            Parameters::LinearSolver::MultigridSMClosureType::full_closure,
+          ExcNotImplemented());
 
         for (const auto &cell : dof_handler.active_cell_iterators())
           {
@@ -382,7 +473,7 @@ public:
           }
 
         std::vector<types::global_dof_index> current_patch;
-        std::vector<unsigned int> current_patch_ptr = {{0}};
+        std::vector<unsigned int>            current_patch_ptr = {{0}};
 
         const auto add_indices = [&](const auto &local_dof_indices) {
           for (const auto i : local_dof_indices)
@@ -465,31 +556,67 @@ public:
 
     for (unsigned int b = 0; b < blocks.size(); ++b)
       {
-        if(false) // TODO: introduce parameter
-        {
-          const double tol = 1e-8;
+        if (true) // TODO: introduce parameter
+          {
+            const double tol = 1e-8;
 
-          for(unsigned int i = 0; i < patches_ptr[b][dim]; ++i)
-            for(unsigned int j = 0; j < patches_ptr[b][dim]; ++j)
-              if(i!=j)
-                blocks[b][i][j] = 0.0;
+            if (true)
+              {
+                blocks[b] = compute_schur_complement_matrix(blocks[b],
+                                                            patches_ptr[b],
+                                                            false);
+              }
 
-          for(unsigned int i = 0; i < blocks[b].m(); ++i)
-            for(unsigned int j = 0; j < blocks[b].n(); ++j)
-                if(std::abs(blocks[b][i][j]) < tol)
+            if (false)
+              {
+                for (unsigned int i = 0; i < patches_ptr[b][dim]; ++i)
+                  for (unsigned int j = 0; j < patches_ptr[b][dim]; ++j)
+                    if (i != j)
+                      blocks[b][i][j] = 0.0;
+              }
+            else if (true)
+              {
+                for (unsigned int i = 0; i < patches_ptr[b][dim]; ++i)
+                  for (unsigned int j = 0; j < patches_ptr[b][dim]; ++j)
+                    if (i != j)
+                      blocks[b][i][j] = 0.0;
+                for (unsigned int i = patches_ptr[b][dim];
+                     i < patches_ptr[b][dim + 1];
+                     ++i)
+                  for (unsigned int j = patches_ptr[b][dim];
+                       j < patches_ptr[b][dim + 1];
+                       ++j)
+                    if (i != j)
+                      blocks[b][i][j] = 0.0;
+              }
+            else if (false)
+              {
+                for (unsigned int i = patches_ptr[b][dim];
+                     i < patches_ptr[b][dim + 1];
+                     ++i)
+                  for (unsigned int j = patches_ptr[b][dim];
+                       j < patches_ptr[b][dim + 1];
+                       ++j)
+                    blocks[b][i][j] = 0.0;
+              }
+
+            for (unsigned int i = 0; i < blocks[b].m(); ++i)
+              for (unsigned int j = 0; j < blocks[b].n(); ++j)
+                if (std::abs(blocks[b][i][j]) < tol)
                   blocks[b][i][j] = 0.0;
 
-          if(false) // TODO: create statistics
-          {
-          unsigned int nnz = 0;
+            if (true) // TODO: create statistics
+              {
+                unsigned int nnz = 0;
 
-          for(unsigned int i = 0; i < blocks[b].m(); ++i)
-            for(unsigned int j = 0; j < blocks[b].n(); ++j)
-                if(blocks[b][i][j] != 0.0)
-                  nnz++;
-          std::cout << blocks[b].m() * blocks[b].n() << " -> " << nnz << std::endl;
+                for (unsigned int i = 0; i < blocks[b].m(); ++i)
+                  for (unsigned int j = 0; j < blocks[b].n(); ++j)
+                    if (blocks[b][i][j] != 0.0)
+                      nnz++;
+                std::cout << blocks[b].m() * blocks[b].n() << " -> " << nnz
+                          << std::endl;
+              }
           }
-        }
 
         this->blocks[b] =
           LAPACKFullMatrix<Number>(blocks[b].m(), blocks[b].n());
