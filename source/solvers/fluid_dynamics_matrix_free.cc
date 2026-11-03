@@ -361,6 +361,9 @@ public:
 
         for (const auto &cell : dof_handler.active_cell_iterators())
           {
+            if (!cell->is_locally_owned())
+              continue;
+
             std::set<typename DoFHandler<dim>::active_cell_iterator> tmp;
             tmp.insert(cell);
             patch_to_cells.emplace_back(tmp);
@@ -373,12 +376,20 @@ public:
           vertex_to_cells(dof_handler.get_triangulation().n_vertices());
 
         for (const auto &cell : dof_handler.active_cell_iterators())
-          for (const auto v : cell->vertex_indices())
-            vertex_to_cells[cell->vertex_index(v)].insert(cell);
+          {
+            if (!cell->is_locally_owned())
+              continue;
+
+            for (const auto v : cell->vertex_indices())
+              vertex_to_cells[cell->vertex_index(v)].insert(cell);
+          }
 
 
         for (const auto &cell : dof_handler.active_cell_iterators())
           {
+            if (!cell->is_locally_owned())
+              continue;
+
             std::set<typename DoFHandler<dim>::active_cell_iterator> tmp;
 
             for (const auto v : cell->vertex_indices())
@@ -393,8 +404,13 @@ public:
         patch_to_cells.resize(dof_handler.get_triangulation().n_vertices());
 
         for (const auto &cell : dof_handler.active_cell_iterators())
-          for (const auto v : cell->vertex_indices())
-            patch_to_cells[cell->vertex_index(v)].insert(cell);
+          {
+            if (!cell->is_locally_owned())
+              continue;
+
+            for (const auto v : cell->vertex_indices())
+              patch_to_cells[cell->vertex_index(v)].insert(cell);
+          }
       }
     else
       {
