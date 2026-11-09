@@ -361,7 +361,7 @@ public:
 
         for (const auto &cell : dof_handler.active_cell_iterators())
           {
-            if (!cell->is_locally_owned())
+            if (cell->is_artificial())
               continue;
 
             std::set<typename DoFHandler<dim>::active_cell_iterator> tmp;
@@ -572,7 +572,7 @@ public:
 
     for (unsigned int b = 0; b < blocks.size(); ++b)
       {
-        if (true) // TODO: introduce parameter
+        if (false) // TODO: introduce parameter
           {
             const double tol = 1e-8;
 
