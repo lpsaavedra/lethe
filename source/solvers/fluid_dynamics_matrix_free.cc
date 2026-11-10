@@ -361,7 +361,7 @@ public:
 
         for (const auto &cell : dof_handler.active_cell_iterators())
           {
-            if (cell->is_artificial())
+            if (!cell->is_locally_owned())
               continue;
 
             std::set<typename DoFHandler<dim>::active_cell_iterator> tmp;
@@ -377,7 +377,7 @@ public:
 
         for (const auto &cell : dof_handler.active_cell_iterators())
           {
-            if (!cell->is_locally_owned())
+            if (cell->is_artificial())
               continue;
 
             for (const auto v : cell->vertex_indices())
@@ -405,7 +405,7 @@ public:
 
         for (const auto &cell : dof_handler.active_cell_iterators())
           {
-            if (!cell->is_locally_owned())
+            if (cell->is_artificial())
               continue;
 
             for (const auto v : cell->vertex_indices())
