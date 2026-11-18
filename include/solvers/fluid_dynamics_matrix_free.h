@@ -6,6 +6,7 @@
 
 #include <core/exceptions.h>
 #include <core/multiphysics.h>
+#include <core/preconditioners.h>
 
 #include <solvers/fluid_dynamics_matrix_free_operators.h>
 #include <solvers/navier_stokes_base.h>
@@ -23,12 +24,6 @@
 #include <deal.II/multigrid/multigrid.h>
 
 using namespace dealii;
-
-template <typename VectorType>
-class PreconditionBase;
-
-template <typename VectorType, typename VectorTypePrecondition>
-class PreconditionAdapter;
 
 namespace dealii
 {

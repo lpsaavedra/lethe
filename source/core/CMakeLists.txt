@@ -36,6 +36,7 @@ add_library(lethe-core
   parameters_cfd_dem.cc
   parameters_lagrangian.cc
   parameters_multiphysics.cc
+  preconditioners.cc
   pvd_handler.cc
   rheological_model.cc
   sdirk_stage_data.cc
@@ -103,6 +104,7 @@ add_library(lethe-core
   ../../include/core/parameters_cfd_dem.h
   ../../include/core/parameters_lagrangian.h
   ../../include/core/parameters_multiphysics.h
+  ../../include/core/preconditioners.h
   ../../include/core/periodic_boundary.h
   ../../include/core/phase_change.h
   ../../include/core/physical_property_model.h
