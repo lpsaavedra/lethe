@@ -365,7 +365,7 @@ public:
   }
 
   /**
-   * @brief Initialize inverses of blocks.
+   * @brief Initialize inverses of blocks in two steps: 1) build patches, 2) build blocks and calculate inverse.
    */
   template <int dim, typename GlobalSparsityPattern, typename Number>
   void
@@ -377,10 +377,23 @@ public:
     const std::shared_ptr<const Utilities::MPI::Partitioner> &partitioner,
     const unsigned int                                        mg_level)
   {
+    build_patches(dof_handler, constraints, partitioner, mg_level);
+
+    this->template build_blocks<dim>(global_sparse_matrix,
+                                     global_sparsity_pattern);
+  }
+
+
+  template <int dim, typename Number>
+  void
+  build_patches(
+    const DoFHandler<dim>                                    &dof_handler,
+    const AffineConstraints<Number>                          &constraints,
+    const std::shared_ptr<const Utilities::MPI::Partitioner> &partitioner,
+    const unsigned int                                        mg_level)
+  {
     // TODO: make work (1) in parallel, (2) on multigrid levels, (3) on
     // locally refined meshes
-
-    this->global_sparse_matrix.copy_from(global_sparse_matrix);
 
     this->timer.enter_subsection("asm::indices");
 
@@ -591,98 +604,6 @@ public:
       }
 
     this->timer.leave_subsection("asm::indices");
-    this->timer.enter_subsection("asm::restrict");
-
-    std::vector<FullMatrix<Number>> blocks;
-
-    // The deprecation warning is triggered internally by deal.II: the call
-    // below instantiates SparseMatrixTools code that still relies on the
-    // deprecated ConsensusAlgorithms::Process class. Suppress it locally until
-    // it is resolved upstream.
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-    SparseMatrixTools::restrict_to_full_matrices(global_sparse_matrix,
-                                                 global_sparsity_pattern,
-                                                 patches,
-                                                 blocks);
-#pragma GCC diagnostic pop
-
-    this->timer.leave_subsection("asm::restrict");
-    this->timer.enter_subsection("asm::invert");
-
-    this->blocks.resize(blocks.size());
-
-    for (unsigned int b = 0; b < blocks.size(); ++b)
-      {
-        if (false) // TODO: introduce parameter
-          {
-            const double tol = 1e-8;
-
-            if (true)
-              {
-                blocks[b] = compute_schur_complement_matrix(blocks[b],
-                                                            patches_ptr[b],
-                                                            false);
-              }
-
-            if (false)
-              {
-                for (unsigned int i = 0; i < patches_ptr[b][dim]; ++i)
-                  for (unsigned int j = 0; j < patches_ptr[b][dim]; ++j)
-                    if (i != j)
-                      blocks[b][i][j] = 0.0;
-              }
-            else if (true)
-              {
-                for (unsigned int i = 0; i < patches_ptr[b][dim]; ++i)
-                  for (unsigned int j = 0; j < patches_ptr[b][dim]; ++j)
-                    if (i != j)
-                      blocks[b][i][j] = 0.0;
-                for (unsigned int i = patches_ptr[b][dim];
-                     i < patches_ptr[b][dim + 1];
-                     ++i)
-                  for (unsigned int j = patches_ptr[b][dim];
-                       j < patches_ptr[b][dim + 1];
-                       ++j)
-                    if (i != j)
-                      blocks[b][i][j] = 0.0;
-              }
-            else if (false)
-              {
-                for (unsigned int i = patches_ptr[b][dim];
-                     i < patches_ptr[b][dim + 1];
-                     ++i)
-                  for (unsigned int j = patches_ptr[b][dim];
-                       j < patches_ptr[b][dim + 1];
-                       ++j)
-                    blocks[b][i][j] = 0.0;
-              }
-
-            for (unsigned int i = 0; i < blocks[b].m(); ++i)
-              for (unsigned int j = 0; j < blocks[b].n(); ++j)
-                if (std::abs(blocks[b][i][j]) < tol)
-                  blocks[b][i][j] = 0.0;
-
-            if (true) // TODO: create statistics
-              {
-                unsigned int nnz = 0;
-
-                for (unsigned int i = 0; i < blocks[b].m(); ++i)
-                  for (unsigned int j = 0; j < blocks[b].n(); ++j)
-                    if (blocks[b][i][j] != 0.0)
-                      nnz++;
-                std::cout << blocks[b].m() * blocks[b].n() << " -> " << nnz
-                          << std::endl;
-              }
-          }
-
-        this->blocks[b] =
-          LAPACKFullMatrix<Number>(blocks[b].m(), blocks[b].n());
-        this->blocks[b] = blocks[b];
-        this->blocks[b].compute_lu_factorization();
-      }
-
-    this->timer.leave_subsection("asm::invert");
 
     if (weighting_type !=
         Parameters::LinearSolver::MultigridSMWeightingType::none)
@@ -713,6 +634,112 @@ public:
 
         this->timer.leave_subsection("asm::weight");
       }
+  }
+
+  template <int dim, typename GlobalSparsityPattern>
+  void
+  build_blocks(const TrilinosWrappers::SparseMatrix &global_sparse_matrix,
+               const GlobalSparsityPattern          &global_sparsity_pattern)
+  {
+    this->global_sparse_matrix.copy_from(global_sparse_matrix);
+
+    this->timer.enter_subsection("asm::restrict");
+
+    std::vector<FullMatrix<Number>> blocks;
+
+    // The deprecation warning is triggered internally by deal.II: the call
+    // below instantiates SparseMatrixTools code that still relies on the
+    // deprecated ConsensusAlgorithms::Process class. Suppress it locally until
+    // it is resolved upstream.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+    SparseMatrixTools::restrict_to_full_matrices(global_sparse_matrix,
+                                                 global_sparsity_pattern,
+                                                 this->global_patches,
+                                                 blocks);
+#pragma GCC diagnostic pop
+
+    this->timer.leave_subsection("asm::restrict");
+    this->timer.enter_subsection("asm::invert");
+
+    this->blocks.resize(blocks.size());
+
+    for (unsigned int b = 0; b < blocks.size(); ++b)
+      {
+        if (false) // TODO: introduce parameter
+          {
+            const double tol = 1e-8;
+
+            if (true)
+              {
+                blocks[b] =
+                  compute_schur_complement_matrix(blocks[b],
+                                                  this->global_patches_ptr[b],
+                                                  false);
+              }
+
+            if (false)
+              {
+                for (unsigned int i = 0; i < this->global_patches_ptr[b][dim];
+                     ++i)
+                  for (unsigned int j = 0; j < this->global_patches_ptr[b][dim];
+                       ++j)
+                    if (i != j)
+                      blocks[b][i][j] = 0.0;
+              }
+            else if (true)
+              {
+                for (unsigned int i = 0; i < this->global_patches_ptr[b][dim];
+                     ++i)
+                  for (unsigned int j = 0; j < this->global_patches_ptr[b][dim];
+                       ++j)
+                    if (i != j)
+                      blocks[b][i][j] = 0.0;
+                for (unsigned int i = this->global_patches_ptr[b][dim];
+                     i < this->global_patches_ptr[b][dim + 1];
+                     ++i)
+                  for (unsigned int j = this->global_patches_ptr[b][dim];
+                       j < this->global_patches_ptr[b][dim + 1];
+                       ++j)
+                    if (i != j)
+                      blocks[b][i][j] = 0.0;
+              }
+            else if (false)
+              {
+                for (unsigned int i = this->global_patches_ptr[b][dim];
+                     i < this->global_patches_ptr[b][dim + 1];
+                     ++i)
+                  for (unsigned int j = this->global_patches_ptr[b][dim];
+                       j < this->global_patches_ptr[b][dim + 1];
+                       ++j)
+                    blocks[b][i][j] = 0.0;
+              }
+
+            for (unsigned int i = 0; i < blocks[b].m(); ++i)
+              for (unsigned int j = 0; j < blocks[b].n(); ++j)
+                if (std::abs(blocks[b][i][j]) < tol)
+                  blocks[b][i][j] = 0.0;
+
+            if (true) // TODO: create statistics
+              {
+                unsigned int nnz = 0;
+
+                for (unsigned int i = 0; i < blocks[b].m(); ++i)
+                  for (unsigned int j = 0; j < blocks[b].n(); ++j)
+                    if (blocks[b][i][j] != 0.0)
+                      nnz++;
+                std::cout << blocks[b].m() * blocks[b].n() << " -> " << nnz
+                          << std::endl;
+              }
+          }
+
+        this->blocks[b] =
+          LAPACKFullMatrix<Number>(blocks[b].m(), blocks[b].n());
+        this->blocks[b] = blocks[b];
+        this->blocks[b].compute_lu_factorization();
+      }
+
+    this->timer.leave_subsection("asm::invert");
   }
 
   /**
@@ -809,6 +836,7 @@ private:
     for (unsigned int i = 0; i < dofs_per_cell; ++i)
       dst_ptr.local_element(patches[c][i]) += vector_dst[i];
   }
+
   /// DoF indices of patches.
   std::vector<std::vector<unsigned int>> patches;
 
