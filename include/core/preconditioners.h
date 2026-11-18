@@ -1,10 +1,7 @@
 #ifndef lethe_preconditioners_h
 #define lethe_preconditioners_h
 
-#include <core/multiphysics.h>
 #include <core/parameters.h>
-
-#include <solvers/simulation_parameters.h>
 
 #include <deal.II/base/exceptions.h>
 #include <deal.II/base/timer.h>
@@ -282,22 +279,90 @@ public:
 
   /**
    * @brief Constructor.
+   *
+   * @param[in] parameters Linear solver parameters containing the smoothing
+   * preconditioner options.
    */
-  template <int dim>
-  PreconditionASM(const SimulationParameters<dim> &simulation_parameters)
-    : weighting_type(
-        simulation_parameters.linear_solver.at(PhysicsID::fluid_dynamics)
-          .mg_smoother_sm_weighting_type)
-    , schwarz_type(
-        simulation_parameters.linear_solver.at(PhysicsID::fluid_dynamics)
-          .mg_smoother_sm_type)
-    , patch_type(
-        simulation_parameters.linear_solver.at(PhysicsID::fluid_dynamics)
-          .mg_smoother_sm_patch_type)
-    , closure_type(
-        simulation_parameters.linear_solver.at(PhysicsID::fluid_dynamics)
-          .mg_smoother_sm_closure_type)
+  PreconditionASM(const Parameters::LinearSolver &parameters)
+    : weighting_type(parameters.mg_smoother_sm_weighting_type)
+    , schwarz_type(parameters.mg_smoother_sm_type)
+    , patch_type(parameters.mg_smoother_sm_patch_type)
+    , closure_type(parameters.mg_smoother_sm_closure_type)
   {}
+
+  /**
+   * @brief Get the local index sets of the patches, as used by vmult().
+   */
+  const std::vector<std::vector<unsigned int>> &
+  get_patches() const
+  {
+    return this->patches;
+  }
+
+  /**
+   * @brief Get the global DoF index sets of the patches, as computed by
+   * initialize() before their conversion to local indices.
+   */
+  const std::vector<std::vector<types::global_dof_index>> &
+  get_global_patches() const
+  {
+    return this->global_patches;
+  }
+
+  /**
+   * @brief Get the pointers to the beginning of the internal and boundary
+   * velocity and pressure blocks of each patch, in global indices.
+   */
+  const std::vector<std::vector<unsigned int>> &
+  get_global_patches_ptr() const
+  {
+    return this->global_patches_ptr;
+  }
+
+  /**
+   * @brief Get the number of patches.
+   */
+  unsigned int
+  get_n_patches() const
+  {
+    return this->patches.size();
+  }
+
+  /**
+   * @brief Get the weighting type.
+   */
+  Parameters::LinearSolver::MultigridSMWeightingType
+  get_weighting_type() const
+  {
+    return this->weighting_type;
+  }
+
+  /**
+   * @brief Get the Schwarz type.
+   */
+  Parameters::LinearSolver::MultigridSMType
+  get_schwarz_type() const
+  {
+    return this->schwarz_type;
+  }
+
+  /**
+   * @brief Get the patch type.
+   */
+  Parameters::LinearSolver::MultigridSMPatchType
+  get_patch_type() const
+  {
+    return this->patch_type;
+  }
+
+  /**
+   * @brief Get the closure type.
+   */
+  Parameters::LinearSolver::MultigridSMClosureType
+  get_closure_type() const
+  {
+    return this->closure_type;
+  }
 
   /**
    * @brief Initialize inverses of blocks.
@@ -509,6 +574,10 @@ public:
         src_internal.reinit(partition);
         dst_internal.reinit(partition);
       }
+
+    // Store global patch data for tests
+    global_patches     = patches;
+    global_patches_ptr = patches_ptr;
 
     // convert indices to local ones
     this->patches.resize(patches.size());
@@ -745,6 +814,14 @@ private:
 
   /// Inverse of patch matrices.
   std::vector<LAPACKFullMatrix<Number>> blocks;
+
+  /// Global DoF indices of patches, as computed by initialize() before
+  /// their conversion to local indices.
+  std::vector<std::vector<types::global_dof_index>> global_patches;
+
+  /// Pointers to the beginning of the internal and boundary velocity and
+  /// pressure blocks of each patch, in global indices.
+  std::vector<std::vector<unsigned int>> global_patches_ptr;
 
   /// Local copy of sparse matrix
   TrilinosWrappers::SparseMatrix global_sparse_matrix;

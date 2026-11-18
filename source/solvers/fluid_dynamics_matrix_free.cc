@@ -1473,7 +1473,7 @@ MFNavierStokesPreconditionGMGBase<dim>::initialize()
           if (mg_smoother_preconditioners[level] == nullptr)
             mg_smoother_preconditioners[level] =
               std::make_shared<PreconditionASM<MGVectorType>>(
-                this->simulation_parameters);
+                linear_solver_parameters);
 
           dynamic_cast<PreconditionASM<MGVectorType> *>(
             mg_smoother_preconditioners[level].get())
