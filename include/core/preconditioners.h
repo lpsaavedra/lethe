@@ -462,6 +462,22 @@ public:
             for (const auto v : cell->vertex_indices())
               patch_to_cells[cell->vertex_index(v)].insert(cell);
           }
+
+        for (auto &cells : patch_to_cells)
+          {
+            if (cells.empty())
+              continue;
+
+            auto min_rank = dealii::numbers::invalid_subdomain_id;
+
+            for (const auto &cell : cells)
+              if (!cell->is_artificial())
+                min_rank = std::min(min_rank, cell->subdomain_id());
+
+            if (min_rank != Utilities::MPI::this_mpi_process(
+                              dof_handler.get_mpi_communicator()))
+              cells.clear();
+          }
       }
     else
       {
