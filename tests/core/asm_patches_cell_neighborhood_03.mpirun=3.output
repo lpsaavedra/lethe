@@ -1,0 +1,70 @@
+n_processes: 3
+n_dofs: 75
+n_active_cells: 16
+n_patches: 16
+patch sizes sum/min/max: 172 / 6 / 17
+index sum: 6236
+patch (rank 0, #0): size 6
+  component 0 (velocity): 9
+  component 1 (velocity): 10
+  component 2 (pressure): 2 5 8 11
+patch (rank 0, #1): size 10
+  component 0 (velocity): 9 15
+  component 1 (velocity): 10 16
+  component 2 (pressure): 2 5 8 11 14 17
+patch (rank 0, #2): size 10
+  component 0 (velocity): 9 21
+  component 1 (velocity): 10 22
+  component 2 (pressure): 2 5 8 11 20 23
+patch (rank 0, #3): size 17
+  component 0 (velocity): 9 15 21 24
+  component 1 (velocity): 10 16 22 25
+  component 2 (pressure): 2 5 8 11 14 17 20 23 26
+patch (rank 1, #0): size 10
+  component 0 (velocity): 15 30
+  component 1 (velocity): 16 31
+  component 2 (pressure): 14 17 29 32 35 38
+patch (rank 1, #1): size 6
+  component 0 (velocity): 30
+  component 1 (velocity): 31
+  component 2 (pressure): 29 32 35 38
+patch (rank 1, #2): size 17
+  component 0 (velocity): 15 24 30 39
+  component 1 (velocity): 16 25 31 40
+  component 2 (pressure): 14 17 26 29 32 35 38 41 44
+patch (rank 1, #3): size 10
+  component 0 (velocity): 30 39
+  component 1 (velocity): 31 40
+  component 2 (pressure): 29 32 35 38 41 44
+patch (rank 1, #4): size 10
+  component 0 (velocity): 21 48
+  component 1 (velocity): 22 49
+  component 2 (pressure): 20 23 47 50 56 59
+patch (rank 1, #5): size 17
+  component 0 (velocity): 21 24 48 51
+  component 1 (velocity): 22 25 49 52
+  component 2 (pressure): 20 23 26 47 50 53 56 59 62
+patch (rank 1, #6): size 6
+  component 0 (velocity): 48
+  component 1 (velocity): 49
+  component 2 (pressure): 47 50 56 59
+patch (rank 1, #7): size 10
+  component 0 (velocity): 48 51
+  component 1 (velocity): 49 52
+  component 2 (pressure): 47 50 53 56 59 62
+patch (rank 2, #0): size 17
+  component 0 (velocity): 24 39 51 63
+  component 1 (velocity): 25 40 52 64
+  component 2 (pressure): 26 41 44 53 62 65 68 71 74
+patch (rank 2, #1): size 10
+  component 0 (velocity): 39 63
+  component 1 (velocity): 40 64
+  component 2 (pressure): 41 44 65 68 71 74
+patch (rank 2, #2): size 10
+  component 0 (velocity): 51 63
+  component 1 (velocity): 52 64
+  component 2 (pressure): 53 62 65 68 71 74
+patch (rank 2, #3): size 6
+  component 0 (velocity): 63
+  component 1 (velocity): 64
+  component 2 (pressure): 65 68 71 74
