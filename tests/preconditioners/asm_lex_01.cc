@@ -134,6 +134,8 @@ test(const unsigned int fe_degree)
 
   const auto renumbering = compute_renumbering(dof_handler, root_process);
 
+  const auto check_indices = [](const auto indices) {};
+
   if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == root_process)
     {
       for (unsigned int i = 0;
@@ -149,6 +151,8 @@ test(const unsigned int fe_degree)
                 i = renumbering[i];
 
               std::sort(temp.begin(), temp.end());
+
+              check_indices(temp);
 
               for (const auto &i : temp)
                 std::cout << i << " ";
