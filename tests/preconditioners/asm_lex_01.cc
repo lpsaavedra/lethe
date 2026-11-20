@@ -103,14 +103,11 @@ compute_renumbering(const DoFHandler<dim> &dof_handler, const unsigned int root)
   return result;
 }
 
-int
-main(int argc, char **argv)
+void
+test(const unsigned int fe_degree)
 {
-  Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, 1);
-
   const unsigned int dim                  = 2;
   const unsigned int n_global_refinements = 2;
-  const unsigned int fe_degree            = 1;
   const unsigned int root_process         = 0;
 
   parallel::distributed::Triangulation<dim> triangulation(MPI_COMM_WORLD);
@@ -160,6 +157,17 @@ main(int argc, char **argv)
           std::cout << std::endl;
         }
     }
+
+  std::cout << std::endl;
+}
+
+int
+main(int argc, char **argv)
+{
+  Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, 1);
+
+  for (unsigned int p = 1; p <= 3; ++p)
+    test(p);
 
   return 0;
 }
