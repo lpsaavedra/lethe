@@ -201,6 +201,10 @@ test(const unsigned int                     fe_degree,
     if (parameters.mg_smoother_sm_patch_type ==
         Parameters::LinearSolver::MultigridSMPatchType::cell)
       {
+        Assert(parameters.mg_smoother_sm_closure_type ==
+                 Parameters::LinearSolver::MultigridSMClosureType::full_closure,
+               ExcNotImplemented());
+
         constexpr unsigned int n_cells = 1u << n_global_refinements;
 
         const unsigned int p = fe_degree;
@@ -256,23 +260,98 @@ test(const unsigned int                     fe_degree,
           for (unsigned int iy = iy_min; iy <= iy_max; ++iy)
             for (unsigned int ix = ix_min; ix <= ix_max; ++ix)
               {
-                const auto &bids = (c < dim) ? velocity_bid : pressure_bid;
+                const bool is_velocity = (c < dim);
+
+                // Only artificial patch interfaces count as patch boundaries.
+                // Physical domain boundaries are NOT artificial interfaces.
+                const bool on_internal_patch_face =
+                  ((ix == ix_min && ix_min > 0) ||
+                   (ix == ix_max && ix_max < N - 1) ||
+                   (iy == iy_min && iy_min > 0) ||
+                   (iy == iy_max && iy_max < N - 1));
+
+                bool include = false;
+
+                switch (parameters.mg_smoother_sm_closure_type)
+                  {
+                    case Parameters::LinearSolver::MultigridSMClosureType::
+                      full_closure:
+                      include = true;
+                      break;
+
+                    case Parameters::LinearSolver::MultigridSMClosureType::
+                      velocity_closure:
+                      include = is_velocity || !on_internal_patch_face;
+                      break;
+
+                    case Parameters::LinearSolver::MultigridSMClosureType::
+                      interior:
+                      include = !on_internal_patch_face;
+                      break;
+
+                    default:
+                      AssertThrow(false, ExcNotImplemented());
+                  }
+
+                if (!include)
+                  continue;
+
+                // Exclude constrained physical boundary DoFs.
+                const auto &bids = is_velocity ? velocity_bid : pressure_bid;
 
                 const auto has_bid = [&](const types::boundary_id bid) {
                   return std::find(bids.begin(), bids.end(), bid) != bids.end();
                 };
 
-                // Skip constrained boundary DoFs
                 if ((ix == 0 && has_bid(0)) || (ix == N - 1 && has_bid(1)) ||
                     (iy == 0 && has_bid(2)) || (iy == N - 1 && has_bid(3)))
                   continue;
 
                 cell_dof_indices_reference.push_back(c * N * N + iy * N + ix);
               }
+
+        if (cell_dof_indices != cell_dof_indices_reference)
+          std::cout << "Error in  (" << cx << ", " << cy << "):" << std::endl;
       }
     else
       {
         AssertThrow(false, ExcNotImplemented());
+      }
+
+    if (cell_dof_indices != cell_dof_indices_reference)
+      {
+        switch (parameters.mg_smoother_sm_closure_type)
+          {
+            case Parameters::LinearSolver::MultigridSMClosureType::full_closure:
+              std::cout << "full_close" << std::endl;
+              break;
+
+            case Parameters::LinearSolver::MultigridSMClosureType::
+              velocity_closure:
+              std::cout << "velocity_closure" << std::endl;
+              break;
+
+            case Parameters::LinearSolver::MultigridSMClosureType::interior:
+              std::cout << "interior" << std::endl;
+              break;
+
+            default:
+              AssertThrow(false, ExcNotImplemented());
+          }
+
+        for (const auto i : velocity_bid)
+          std::cout << i << " ";
+        std::cout << std::endl;
+        for (const auto i : pressure_bid)
+          std::cout << i << " ";
+        std::cout << std::endl;
+
+        for (const auto &i : cell_dof_indices)
+          std::cout << i << " ";
+        std::cout << std::endl;
+        for (const auto &i : cell_dof_indices_reference)
+          std::cout << i << " ";
+        std::cout << std::endl;
       }
 
     AssertThrow(cell_dof_indices == cell_dof_indices_reference,
