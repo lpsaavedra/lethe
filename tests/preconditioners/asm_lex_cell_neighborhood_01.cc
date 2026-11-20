@@ -17,22 +17,26 @@ main(int argc, char **argv)
   Parameters::LinearSolver parameters;
   parameters.mg_smoother_sm_patch_type =
     Parameters::LinearSolver::MultigridSMPatchType::cell_neighborhood;
-  parameters.mg_smoother_sm_closure_type =
-    Parameters::LinearSolver::MultigridSMClosureType::full_closure;
   parameters.mg_smoother_sm_weighting_type =
     Parameters::LinearSolver::MultigridSMWeightingType::none;
 
-  for (unsigned int p = 1; p <= 3; ++p)
+  for (const auto closure_type : magic_enum::enum_values<
+         Parameters::LinearSolver::MultigridSMClosureType>())
     {
-      test(p, parameters);
-      test(p,
-           parameters,
-           std::vector<types::boundary_id>{0},
-           std::vector<types::boundary_id>{});
-      test(p,
-           parameters,
-           std::vector<types::boundary_id>{},
-           std::vector<types::boundary_id>{0});
+      parameters.mg_smoother_sm_closure_type = closure_type;
+
+      for (unsigned int p = 1; p <= 3; ++p)
+        {
+          test(p, parameters);
+          test(p,
+               parameters,
+               std::vector<types::boundary_id>{0},
+               std::vector<types::boundary_id>{});
+          test(p,
+               parameters,
+               std::vector<types::boundary_id>{},
+               std::vector<types::boundary_id>{0});
+        }
     }
 
   return 0;
