@@ -586,14 +586,16 @@ PreconditionASM<VectorType>::vmult(VectorType &dst, const VectorType &src) const
     src_internal.copy_locally_owned_data_from(src);
   src_ptr.update_ghost_values();
 
-  for (unsigned int c = 0; c < patches.size(); ++c)
+
+  if (schwarz_type == Parameters::LinearSolver::MultigridSMType::additive)
     {
-      if (schwarz_type == Parameters::LinearSolver::MultigridSMType::additive)
-        {
-          patch_solve(c, dst_ptr, src_ptr);
-        }
-      else if (schwarz_type ==
-               Parameters::LinearSolver::MultigridSMType::multiplicative)
+      for (unsigned int c = 0; c < patches.size(); ++c)
+        patch_solve(c, dst_ptr, src_ptr);
+    }
+  else if (schwarz_type ==
+           Parameters::LinearSolver::MultigridSMType::multiplicative)
+    {
+      for (unsigned int c = 0; c < patches.size(); ++c)
         {
           // Update the residual vector
           residual_internal.reinit(src_ptr, true);
