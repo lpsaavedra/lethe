@@ -235,7 +235,40 @@ test(const unsigned int                     fe_degree,
     else if (parameters.mg_smoother_sm_patch_type ==
              Parameters::LinearSolver::MultigridSMPatchType::cell_neighborhood)
       {
-        // TODO
+        constexpr unsigned int n_cells = 1u << n_global_refinements;
+
+        const unsigned int p = fe_degree;
+        const unsigned int N = n_cells * p + 1;
+
+        const unsigned int cx =
+          static_cast<unsigned int>(cell_mid_point[0] * n_cells);
+        const unsigned int cy =
+          static_cast<unsigned int>(cell_mid_point[1] * n_cells);
+
+        // Patch bounds in global DoF coordinates
+        const unsigned int ix_min = (cx > 0) ? (cx - 1) * p : 0;
+        const unsigned int iy_min = (cy > 0) ? (cy - 1) * p : 0;
+
+        const unsigned int ix_max = std::min((cx + 2) * p, N - 1);
+        const unsigned int iy_max = std::min((cy + 2) * p, N - 1);
+
+        for (unsigned int c = 0; c < dim + 1; ++c)
+          for (unsigned int iy = iy_min; iy <= iy_max; ++iy)
+            for (unsigned int ix = ix_min; ix <= ix_max; ++ix)
+              {
+                const auto &bids = (c < dim) ? velocity_bid : pressure_bid;
+
+                const auto has_bid = [&](const types::boundary_id bid) {
+                  return std::find(bids.begin(), bids.end(), bid) != bids.end();
+                };
+
+                // Skip constrained boundary DoFs
+                if ((ix == 0 && has_bid(0)) || (ix == N - 1 && has_bid(1)) ||
+                    (iy == 0 && has_bid(2)) || (iy == N - 1 && has_bid(3)))
+                  continue;
+
+                cell_dof_indices_reference.push_back(c * N * N + iy * N + ix);
+              }
       }
     else
       {
