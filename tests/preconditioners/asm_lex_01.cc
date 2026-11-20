@@ -52,7 +52,10 @@ main(int argc, char **argv)
 
           for (const auto &patch : all_patches[i])
             {
-              for (const auto &i : patch)
+              auto temp = patch;
+              std::sort(temp.begin(), temp.end());
+
+              for (const auto &i : temp)
                 std::cout << i << " ";
               std::cout << std::endl;
             }
