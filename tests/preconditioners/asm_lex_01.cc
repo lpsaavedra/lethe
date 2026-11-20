@@ -111,12 +111,15 @@ test(const unsigned int fe_degree)
   const unsigned int root_process         = 0;
 
   parallel::distributed::Triangulation<dim> triangulation(MPI_COMM_WORLD);
-  GridGenerator::hyper_cube(triangulation);
+  GridGenerator::hyper_cube(triangulation, 0, 1, true);
   triangulation.refine_global(n_global_refinements);
 
   FESystem<dim>   fe(FE_Q<dim>(fe_degree), dim + 1);
   DoFHandler<dim> dof_handler(triangulation);
   dof_handler.distribute_dofs(fe);
+
+  AffineConstraints<double> constraints;
+  constraints.close();
 
   std::vector<std::tuple<Point<dim>, std::vector<types::global_dof_index>>>
     patches;
@@ -127,7 +130,13 @@ test(const unsigned int fe_degree)
         std::vector<types::global_dof_index> patch(
           cell->get_fe().n_dofs_per_cell());
         cell->get_dof_indices(patch);
-        patches.emplace_back(cell->center(), patch);
+
+        std::vector<types::global_dof_index> temp;
+        for (const auto i : patch)
+          if (!constraints.is_constrained(i))
+            temp.emplace_back(i);
+
+        patches.emplace_back(cell->center(), temp);
       }
 
   const auto all_patches =
