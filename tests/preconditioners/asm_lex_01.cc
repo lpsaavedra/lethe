@@ -118,7 +118,8 @@ test(const unsigned int fe_degree)
   DoFHandler<dim> dof_handler(triangulation);
   dof_handler.distribute_dofs(fe);
 
-  std::vector<std::vector<types::global_dof_index>> patches;
+  std::vector<std::tuple<Point<dim>, std::vector<types::global_dof_index>>>
+    patches;
 
   for (const auto &cell : dof_handler.active_cell_iterators())
     if (cell->is_locally_owned())
@@ -126,7 +127,7 @@ test(const unsigned int fe_degree)
         std::vector<types::global_dof_index> patch(
           cell->get_fe().n_dofs_per_cell());
         cell->get_dof_indices(patch);
-        patches.emplace_back(patch);
+        patches.emplace_back(cell->center(), patch);
       }
 
   const auto all_patches =
@@ -134,7 +135,34 @@ test(const unsigned int fe_degree)
 
   const auto renumbering = compute_renumbering(dof_handler, root_process);
 
-  const auto check_indices = [](const auto indices) {};
+  const auto check_indices =
+    [&](const Point<dim>                           &cell_mid_point,
+        const std::vector<types::global_dof_index> &cell_dof_indices) {
+      constexpr unsigned int n_cells = 1u << n_global_refinements;
+
+      const unsigned int p = fe_degree;
+      const unsigned int N = n_cells * p + 1;
+
+      const unsigned int cx =
+        static_cast<unsigned int>(cell_mid_point[0] * n_cells);
+      const unsigned int cy =
+        static_cast<unsigned int>(cell_mid_point[1] * n_cells);
+
+      std::vector<types::global_dof_index> cell_dof_indices_reference;
+
+      for (unsigned int c = 0; c < dim + 1; ++c)
+        for (unsigned int j = 0; j <= p; ++j)
+          for (unsigned int i = 0; i <= p; ++i)
+            {
+              const unsigned int ix = cx * p + i;
+              const unsigned int iy = cy * p + j;
+
+              cell_dof_indices_reference.push_back(c * N * N + iy * N + ix);
+            }
+
+      AssertThrow(cell_dof_indices == cell_dof_indices_reference,
+                  ExcInternalError());
+    };
 
   if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == root_process)
     {
@@ -144,15 +172,15 @@ test(const unsigned int fe_degree)
         {
           std::cout << "rank " << i << ":" << std::endl;
 
-          for (const auto &patch : all_patches[i])
+          for (const auto &[point, indices] : all_patches[i])
             {
-              auto temp = patch;
+              auto temp = indices;
               for (auto &i : temp)
                 i = renumbering[i];
 
               std::sort(temp.begin(), temp.end());
 
-              check_indices(temp);
+              check_indices(point, temp);
 
               for (const auto &i : temp)
                 std::cout << i << " ";
