@@ -247,6 +247,12 @@ public:
   get_closure_type() const;
 
   /**
+   * @brief Get the patches points.
+   */
+  std::vector<std::vector<double>>
+  get_patches_points() const;
+
+  /**
    * @brief Initialize inverses of blocks in two steps: 1) build patches, 2) build blocks and calculate inverse.
    */
   template <int dim>
@@ -300,6 +306,10 @@ private:
   /// Pointers to the beginning of the internal and boundary velocity and
   /// pressure blocks of each patch, in global indices.
   std::vector<std::vector<unsigned int>> global_patches_ptr;
+
+  /// Patch coordinates. In the case of cell patches cell center, in the case of
+  /// vertex patches vertex point.
+  std::vector<std::vector<double>> patches_points;
 
   /// Local copy of sparse matrix
   TrilinosWrappers::SparseMatrix global_sparse_matrix;

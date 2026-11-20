@@ -156,6 +156,13 @@ PreconditionASM<VectorType>::get_closure_type() const
 }
 
 template <typename VectorType>
+std::vector<std::vector<double>>
+PreconditionASM<VectorType>::get_patches_points() const
+{
+  return this->patches_points;
+}
+
+template <typename VectorType>
 template <int dim>
 void
 PreconditionASM<VectorType>::initialize(
@@ -189,7 +196,9 @@ PreconditionASM<VectorType>::build_patches(
 
   std::vector<std::vector<types::global_dof_index>> patches;
 
-  std::vector<std::set<typename DoFHandler<dim>::active_cell_iterator>>
+  std::vector<
+    std::tuple<Point<dim>,
+               std::set<typename DoFHandler<dim>::active_cell_iterator>>>
     patch_to_cells;
 
   // 1) build patches
@@ -207,7 +216,7 @@ PreconditionASM<VectorType>::build_patches(
 
           std::set<typename DoFHandler<dim>::active_cell_iterator> tmp;
           tmp.insert(cell);
-          patch_to_cells.emplace_back(tmp);
+          patch_to_cells.emplace_back(cell->center(), tmp);
         }
     }
   else if (patch_type ==
@@ -236,7 +245,7 @@ PreconditionASM<VectorType>::build_patches(
           for (const auto v : cell->vertex_indices())
             for (const auto &c : vertex_to_cells[cell->vertex_index(v)])
               tmp.insert(c);
-          patch_to_cells.emplace_back(tmp);
+          patch_to_cells.emplace_back(cell->center(), tmp);
         }
     }
   else if (patch_type ==
@@ -250,10 +259,14 @@ PreconditionASM<VectorType>::build_patches(
             continue;
 
           for (const auto v : cell->vertex_indices())
-            patch_to_cells[cell->vertex_index(v)].insert(cell);
+            {
+              std::get<0>(patch_to_cells[cell->vertex_index(v)]) =
+                cell->vertex(v);
+              std::get<1>(patch_to_cells[cell->vertex_index(v)]).insert(cell);
+            }
         }
 
-      for (auto &cells : patch_to_cells)
+      for (auto &[_, cells] : patch_to_cells)
         {
           if (cells.empty())
             continue;
@@ -277,7 +290,7 @@ PreconditionASM<VectorType>::build_patches(
   std::vector<std::vector<unsigned int>> patches_ptr;
 
   // 2) dof indices
-  for (const auto &cells : patch_to_cells)
+  for (const auto &[point, cells] : patch_to_cells)
     {
       if (cells.empty())
         continue;
@@ -367,6 +380,12 @@ PreconditionASM<VectorType>::build_patches(
         {
           patches.emplace_back(current_patch);
           patches_ptr.emplace_back(current_patch_ptr);
+
+          std::vector<double> temp(dim);
+          for (unsigned int i = 0; i < dim; ++i)
+            temp[i] = point[i];
+
+          patches_points.emplace_back(temp);
         }
     }
 
