@@ -104,7 +104,9 @@ compute_renumbering(const DoFHandler<dim> &dof_handler, const unsigned int root)
 }
 
 void
-test(const unsigned int fe_degree)
+test(const unsigned int                     fe_degree,
+     const std::vector<types::boundary_id> &velocity_bid = {},
+     const std::vector<types::boundary_id> &pressure_bid = {})
 {
   const unsigned int dim                  = 2;
   const unsigned int n_global_refinements = 2;
@@ -119,6 +121,26 @@ test(const unsigned int fe_degree)
   dof_handler.distribute_dofs(fe);
 
   AffineConstraints<double> constraints;
+  constraints.reinit(dof_handler.locally_owned_dofs(),
+                     DoFTools::extract_locally_relevant_dofs(dof_handler));
+
+  FEValuesExtractors::Vector velocities(0);
+  FEValuesExtractors::Scalar pressure(dim);
+
+  for (const auto bid : velocity_bid)
+    VectorTools::interpolate_boundary_values(dof_handler,
+                                             bid,
+                                             Functions::ZeroFunction<dim>(dim +
+                                                                          1),
+                                             constraints,
+                                             fe.component_mask(velocities));
+  for (const auto bid : pressure_bid)
+    VectorTools::interpolate_boundary_values(dof_handler,
+                                             bid,
+                                             Functions::ZeroFunction<dim>(dim +
+                                                                          1),
+                                             constraints,
+                                             fe.component_mask(pressure));
   constraints.close();
 
   std::vector<std::tuple<Point<dim>, std::vector<types::global_dof_index>>>
@@ -166,6 +188,17 @@ test(const unsigned int fe_degree)
               const unsigned int ix = cx * p + i;
               const unsigned int iy = cy * p + j;
 
+              const auto &bids = (c < dim) ? velocity_bid : pressure_bid;
+
+              const auto has_bid = [&](const types::boundary_id bid) {
+                return std::find(bids.begin(), bids.end(), bid) != bids.end();
+              };
+
+              // Skip constrained boundary DoFs
+              if ((ix == 0 && has_bid(0)) || (ix == N - 1 && has_bid(1)) ||
+                  (iy == 0 && has_bid(2)) || (iy == N - 1 && has_bid(3)))
+                continue;
+
               cell_dof_indices_reference.push_back(c * N * N + iy * N + ix);
             }
 
@@ -208,7 +241,15 @@ main(int argc, char **argv)
   Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, 1);
 
   for (unsigned int p = 1; p <= 3; ++p)
-    test(p);
+    {
+      test(p);
+      test(p,
+           std::vector<types::boundary_id>{0},
+           std::vector<types::boundary_id>{});
+      test(p,
+           std::vector<types::boundary_id>{},
+           std::vector<types::boundary_id>{0});
+    }
 
   return 0;
 }
