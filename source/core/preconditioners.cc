@@ -251,6 +251,11 @@ PreconditionASM<VectorType>::build_patches(
   else if (patch_type ==
            Parameters::LinearSolver::MultigridSMPatchType::vertex_star)
     {
+      std::map<
+        types::global_dof_index,
+        std::tuple<Point<dim>,
+                   std::set<typename DoFHandler<dim>::active_cell_iterator>>>
+        map_patch_to_cells;
       patch_to_cells.resize(dof_handler.get_triangulation().n_vertices());
 
       for (const auto &cell : dof_handler.active_cell_iterators())
@@ -260,26 +265,24 @@ PreconditionASM<VectorType>::build_patches(
 
           for (const auto v : cell->vertex_indices())
             {
-              std::get<0>(patch_to_cells[cell->vertex_index(v)]) =
-                cell->vertex(v);
-              std::get<1>(patch_to_cells[cell->vertex_index(v)]).insert(cell);
+              auto &ptr = map_patch_to_cells[cell->vertex_dof_index(v, 0)];
+
+              std::get<0>(ptr) = cell->vertex(v);
+              std::get<1>(ptr).insert(cell);
             }
         }
 
-      for (auto &[_, cells] : patch_to_cells)
+      for (auto &[_, value] : map_patch_to_cells)
         {
-          if (cells.empty())
-            continue;
-
           auto min_rank = dealii::numbers::invalid_subdomain_id;
 
-          for (const auto &cell : cells)
+          for (const auto &cell : std::get<1>(value))
             if (!cell->is_artificial())
               min_rank = std::min(min_rank, cell->subdomain_id());
 
-          if (min_rank != Utilities::MPI::this_mpi_process(
+          if (min_rank == Utilities::MPI::this_mpi_process(
                             dof_handler.get_mpi_communicator()))
-            cells.clear();
+            patch_to_cells.push_back(value);
         }
     }
   else
