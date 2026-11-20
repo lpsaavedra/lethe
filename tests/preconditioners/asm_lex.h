@@ -193,45 +193,58 @@ test(const unsigned int                     fe_degree,
 
   const auto renumbering = compute_renumbering(dof_handler, root_process);
 
-  const auto check_indices =
-    [&](const Point<dim>                           &cell_mid_point,
-        const std::vector<types::global_dof_index> &cell_dof_indices) {
-      constexpr unsigned int n_cells = 1u << n_global_refinements;
+  const auto check_indices = [&](const Point<dim> &cell_mid_point,
+                                 const std::vector<types::global_dof_index>
+                                   &cell_dof_indices) {
+    std::vector<types::global_dof_index> cell_dof_indices_reference;
 
-      const unsigned int p = fe_degree;
-      const unsigned int N = n_cells * p + 1;
+    if (parameters.mg_smoother_sm_patch_type ==
+        Parameters::LinearSolver::MultigridSMPatchType::cell)
+      {
+        constexpr unsigned int n_cells = 1u << n_global_refinements;
 
-      const unsigned int cx =
-        static_cast<unsigned int>(cell_mid_point[0] * n_cells);
-      const unsigned int cy =
-        static_cast<unsigned int>(cell_mid_point[1] * n_cells);
+        const unsigned int p = fe_degree;
+        const unsigned int N = n_cells * p + 1;
 
-      std::vector<types::global_dof_index> cell_dof_indices_reference;
+        const unsigned int cx =
+          static_cast<unsigned int>(cell_mid_point[0] * n_cells);
+        const unsigned int cy =
+          static_cast<unsigned int>(cell_mid_point[1] * n_cells);
 
-      for (unsigned int c = 0; c < dim + 1; ++c)
-        for (unsigned int j = 0; j <= p; ++j)
-          for (unsigned int i = 0; i <= p; ++i)
-            {
-              const unsigned int ix = cx * p + i;
-              const unsigned int iy = cy * p + j;
+        for (unsigned int c = 0; c < dim + 1; ++c)
+          for (unsigned int j = 0; j <= p; ++j)
+            for (unsigned int i = 0; i <= p; ++i)
+              {
+                const unsigned int ix = cx * p + i;
+                const unsigned int iy = cy * p + j;
 
-              const auto &bids = (c < dim) ? velocity_bid : pressure_bid;
+                const auto &bids = (c < dim) ? velocity_bid : pressure_bid;
 
-              const auto has_bid = [&](const types::boundary_id bid) {
-                return std::find(bids.begin(), bids.end(), bid) != bids.end();
-              };
+                const auto has_bid = [&](const types::boundary_id bid) {
+                  return std::find(bids.begin(), bids.end(), bid) != bids.end();
+                };
 
-              // Skip constrained boundary DoFs
-              if ((ix == 0 && has_bid(0)) || (ix == N - 1 && has_bid(1)) ||
-                  (iy == 0 && has_bid(2)) || (iy == N - 1 && has_bid(3)))
-                continue;
+                // Skip constrained boundary DoFs
+                if ((ix == 0 && has_bid(0)) || (ix == N - 1 && has_bid(1)) ||
+                    (iy == 0 && has_bid(2)) || (iy == N - 1 && has_bid(3)))
+                  continue;
 
-              cell_dof_indices_reference.push_back(c * N * N + iy * N + ix);
-            }
+                cell_dof_indices_reference.push_back(c * N * N + iy * N + ix);
+              }
+      }
+    else if (parameters.mg_smoother_sm_patch_type ==
+             Parameters::LinearSolver::MultigridSMPatchType::cell_neighborhood)
+      {
+        // TODO
+      }
+    else
+      {
+        AssertThrow(false, ExcNotImplemented());
+      }
 
-      AssertThrow(cell_dof_indices == cell_dof_indices_reference,
-                  ExcInternalError());
-    };
+    AssertThrow(cell_dof_indices == cell_dof_indices_reference,
+                ExcInternalError());
+  };
 
   if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == root_process)
     {
