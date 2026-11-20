@@ -16,15 +16,88 @@ template <int dim>
 std::vector<types::global_dof_index>
 compute_renumbering(const DoFHandler<dim> &dof_handler, const unsigned int root)
 {
+  MappingQ1<dim> mapping;
+
   std::vector<types::global_dof_index> result;
+
+  std::vector<std::tuple<types::global_dof_index, unsigned int, Point<dim>>>
+    points;
+
+  const auto &fe = dof_handler.get_fe();
+
+  std::vector<types::global_dof_index> dof_indices(fe.n_dofs_per_cell());
+
+  FEValues<dim> fe_values(mapping,
+                          fe,
+                          Quadrature<dim>(fe.get_unit_support_points()),
+                          update_quadrature_points);
+
+  for (const auto &cell : dof_handler.active_cell_iterators())
+    if (cell->is_locally_owned())
+      {
+        fe_values.reinit(cell);
+        cell->get_dof_indices(dof_indices);
+
+        for (unsigned int i = 0; i < dof_indices.size(); ++i)
+          points.emplace_back(dof_indices[i],
+                              fe.system_to_component_index(i).first,
+                              fe_values.quadrature_point(i));
+      }
+
+  const auto all_points_per_rank =
+    Utilities::MPI::gather(dof_handler.get_mpi_communicator(), points, root);
 
   if (Utilities::MPI::this_mpi_process(dof_handler.get_mpi_communicator()) ==
       root)
     {
       result.resize(dof_handler.n_dofs());
 
-      for (unsigned int i = 0; i < result.size(); ++i)
-        result[i] = i;
+      std::vector<std::tuple<types::global_dof_index, unsigned int, Point<dim>>>
+        all_points;
+
+      for (const auto &i : all_points_per_rank)
+        all_points.insert(all_points.end(), i.begin(), i.end());
+
+      std::sort(all_points.begin(),
+                all_points.end(),
+                [](const auto &a, const auto &b) {
+                  return std::get<0>(a) < std::get<0>(b);
+                });
+      all_points.erase(std::unique(all_points.begin(),
+                                   all_points.end(),
+                                   [](const auto &a, const auto &b) {
+                                     return std::get<0>(a) == std::get<0>(b);
+                                   }),
+                       all_points.end());
+
+      AssertDimension(all_points.size(), result.size());
+
+      std::sort(all_points.begin(),
+                all_points.end(),
+                [](const auto &a, const auto &b) {
+                  if (std::get<1>(a) != std::get<1>(b))
+                    return std::get<1>(a) < std::get<1>(b);
+
+                  std::vector<double> a_(dim);
+                  std::vector<double> b_(dim);
+
+                  std::get<2>(a).unroll(a_.begin(), a_.end());
+                  std::reverse(a_.begin(), a_.end());
+
+                  std::get<2>(b).unroll(b_.begin(), b_.end());
+                  std::reverse(b_.begin(), b_.end());
+
+                  for (unsigned int d = 0; d < dim; ++d)
+                    {
+                      if (std::abs(a_[d] - b_[d]) > 1e-8 /*epsilon*/)
+                        return a_[d] < b_[d];
+                    }
+
+                  return true;
+                });
+
+      for (unsigned int i = 0; i < all_points.size(); ++i)
+        result[get<0>(all_points[i])] = i;
     }
 
   return result;
