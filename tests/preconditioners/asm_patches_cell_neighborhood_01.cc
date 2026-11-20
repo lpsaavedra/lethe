@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception OR LGPL-2.1-or-later
 
 /**
- * @brief Check indices for cell neighborhood patches for velocity and pressure in a 4x4 grid for Q1, Q2 and Q3 elements.
+ * @brief Check indices for cell_neighborhoodes for velocity and pressure in a 4x4 grid for Q1, Q2 and Q3 elements.
  */
 
 #include "asm_patches_indices.h"
@@ -20,29 +20,17 @@ main(int argc, char **argv)
   parameters.mg_smoother_sm_weighting_type =
     Parameters::LinearSolver::MultigridSMWeightingType::none;
 
-  parameters.mg_smoother_sm_closure_type =
-    Parameters::LinearSolver::MultigridSMClosureType::full_closure;
-
-  for (unsigned int fe_degree = 1; fe_degree < 4; ++fe_degree)
+  for (const auto closure_type : magic_enum::enum_values<
+         Parameters::LinearSolver::MultigridSMClosureType>())
     {
-      patches_indices_test(fe_degree, parameters);
+      parameters.mg_smoother_sm_closure_type = closure_type;
+
+      for (unsigned int fe_degree = 1; fe_degree < 4; ++fe_degree)
+        {
+          patches_indices_test(fe_degree, parameters);
+        }
     }
 
-  parameters.mg_smoother_sm_closure_type =
-    Parameters::LinearSolver::MultigridSMClosureType::velocity_closure;
-
-  for (unsigned int fe_degree = 1; fe_degree < 4; ++fe_degree)
-    {
-      patches_indices_test(fe_degree, parameters);
-    }
-
-  parameters.mg_smoother_sm_closure_type =
-    Parameters::LinearSolver::MultigridSMClosureType::interior;
-
-  for (unsigned int fe_degree = 1; fe_degree < 4; ++fe_degree)
-    {
-      patches_indices_test(fe_degree, parameters);
-    }
 
   return 0;
 }

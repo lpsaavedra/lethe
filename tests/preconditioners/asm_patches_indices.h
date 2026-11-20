@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception OR LGPL-2.1-or-later
 
 /**
- * @brief Print indices for cell patches considering a 4x4 grid.
+ * @brief Print indices for celles considering a 4x4 grid.
  */
 
 #include <core/preconditioners.h>
@@ -109,29 +109,11 @@ patches_indices_test(const unsigned int             &fe_degree,
 
   if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
     {
-      std::string type_of_patch;
-      if (parameters.mg_smoother_sm_patch_type ==
-          Parameters::LinearSolver::MultigridSMPatchType::cell)
-        type_of_patch = "Cell patch";
-      else if (parameters.mg_smoother_sm_patch_type ==
-               Parameters::LinearSolver::MultigridSMPatchType::
-                 cell_neighborhood)
-        type_of_patch = "Cell neighborhood patch";
-      else if (parameters.mg_smoother_sm_patch_type ==
-               Parameters::LinearSolver::MultigridSMPatchType::vertex_star)
-        type_of_patch = "Vertex-star patch";
+      const std::string type_of_patch = std::string(
+        magic_enum::enum_name(parameters.mg_smoother_sm_patch_type));
 
-      std::string type_of_closure;
-      if (parameters.mg_smoother_sm_closure_type ==
-          Parameters::LinearSolver::MultigridSMClosureType::full_closure)
-        type_of_closure = "full closure";
-      else if (parameters.mg_smoother_sm_closure_type ==
-               Parameters::LinearSolver::MultigridSMClosureType::
-                 velocity_closure)
-        type_of_closure = "velocity closure";
-      else if (parameters.mg_smoother_sm_closure_type ==
-               Parameters::LinearSolver::MultigridSMClosureType::interior)
-        type_of_closure = "interior closure";
+      const std::string type_of_closure = std::string(
+        magic_enum::enum_name(parameters.mg_smoother_sm_closure_type));
 
       std::cout << std::string(80, '-') << std::endl;
       std::cout << type_of_patch << " - " << type_of_closure << " - FE_Q "

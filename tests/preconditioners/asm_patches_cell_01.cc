@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception OR LGPL-2.1-or-later
 
 /**
- * @brief Check indices for cell patches for velocity and pressure in a 4x4 grid for Q1, Q2 and Q3 elements.
+ * @brief Check indices for celles for velocity and pressure in a 4x4 grid for Q1, Q2 and Q3 elements.
  */
 
 #include "asm_patches_indices.h"
