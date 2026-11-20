@@ -313,6 +313,86 @@ test(const unsigned int                     fe_degree,
         if (cell_dof_indices != cell_dof_indices_reference)
           std::cout << "Error in  (" << cx << ", " << cy << "):" << std::endl;
       }
+    else if (parameters.mg_smoother_sm_patch_type ==
+             Parameters::LinearSolver::MultigridSMPatchType::vertex_star)
+      {
+        constexpr unsigned int n_cells = 1u << n_global_refinements;
+
+        const unsigned int p = fe_degree;
+        const unsigned int N = n_cells * p + 1;
+
+        // Vertex coordinates in the Cartesian cell grid
+        const unsigned int vx =
+          static_cast<unsigned int>(std::lround(cell_mid_point[0] * n_cells));
+
+        const unsigned int vy =
+          static_cast<unsigned int>(std::lround(cell_mid_point[1] * n_cells));
+
+        AssertIndexRange(vx, n_cells + 1);
+        AssertIndexRange(vy, n_cells + 1);
+
+        // Vertex-star patch bounds in global DoF coordinates.
+        // The star consists of up to four cells sharing the vertex.
+        const unsigned int ix_min = (vx > 0) ? (vx - 1) * p : 0;
+        const unsigned int iy_min = (vy > 0) ? (vy - 1) * p : 0;
+
+        const unsigned int ix_max = std::min((vx + 1) * p, N - 1);
+        const unsigned int iy_max = std::min((vy + 1) * p, N - 1);
+
+        for (unsigned int c = 0; c < dim + 1; ++c)
+          for (unsigned int iy = iy_min; iy <= iy_max; ++iy)
+            for (unsigned int ix = ix_min; ix <= ix_max; ++ix)
+              {
+                const bool is_velocity = (c < dim);
+
+                // Artificial patch interfaces only.
+                // Physical domain boundaries are not artificial interfaces.
+                const bool on_internal_patch_face =
+                  ((ix == ix_min && ix_min > 0) ||
+                   (ix == ix_max && ix_max < N - 1) ||
+                   (iy == iy_min && iy_min > 0) ||
+                   (iy == iy_max && iy_max < N - 1));
+
+                bool include = false;
+
+                switch (parameters.mg_smoother_sm_closure_type)
+                  {
+                    case Parameters::LinearSolver::MultigridSMClosureType::
+                      full_closure:
+                      include = true;
+                      break;
+
+                    case Parameters::LinearSolver::MultigridSMClosureType::
+                      velocity_closure:
+                      include = is_velocity || !on_internal_patch_face;
+                      break;
+
+                    case Parameters::LinearSolver::MultigridSMClosureType::
+                      interior:
+                      include = !on_internal_patch_face;
+                      break;
+
+                    default:
+                      AssertThrow(false, ExcNotImplemented());
+                  }
+
+                if (!include)
+                  continue;
+
+                // Exclude constrained physical boundary DoFs
+                const auto &bids = is_velocity ? velocity_bid : pressure_bid;
+
+                const auto has_bid = [&](const types::boundary_id bid) {
+                  return std::find(bids.begin(), bids.end(), bid) != bids.end();
+                };
+
+                if ((ix == 0 && has_bid(0)) || (ix == N - 1 && has_bid(1)) ||
+                    (iy == 0 && has_bid(2)) || (iy == N - 1 && has_bid(3)))
+                  continue;
+
+                cell_dof_indices_reference.push_back(c * N * N + iy * N + ix);
+              }
+      }
     else
       {
         AssertThrow(false, ExcNotImplemented());
