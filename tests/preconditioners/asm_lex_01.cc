@@ -29,15 +29,18 @@ main(int argc, char **argv)
   DoFHandler<dim> dof_handler(triangulation);
   dof_handler.distribute_dofs(fe);
 
-  std::vector<Point<dim>> points;
+  std::vector<std::vector<types::global_dof_index>> patches;
 
   for (const auto &cell : dof_handler.active_cell_iterators())
     if (cell->is_locally_owned())
       {
-        points.emplace_back(cell->center());
+        std::vector<types::global_dof_index> patch(
+          cell->get_fe().n_dofs_per_cell());
+        cell->get_dof_indices(patch);
+        patches.emplace_back(patch);
       }
 
-  const auto all_points = Utilities::MPI::gather(MPI_COMM_WORLD, points, 0);
+  const auto all_patches = Utilities::MPI::gather(MPI_COMM_WORLD, patches, 0);
 
   if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
     {
@@ -47,8 +50,12 @@ main(int argc, char **argv)
         {
           std::cout << "rank " << i << ":" << std::endl;
 
-          for (const auto &point : all_points[i])
-            std::cout << point << std::endl;
+          for (const auto &patch : all_patches[i])
+            {
+              for (const auto &i : patch)
+                std::cout << i << " ";
+              std::cout << std::endl;
+            }
           std::cout << std::endl;
         }
     }
