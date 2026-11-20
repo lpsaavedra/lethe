@@ -230,9 +230,9 @@ test(const unsigned int                     fe_degree,
             }
           std::cout << std::endl;
         }
-    }
 
-  std::cout << std::endl;
+      std::cout << std::endl;
+    }
 }
 
 int
