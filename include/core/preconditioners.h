@@ -337,6 +337,8 @@ private:
 
   /// Internal residual vector for multiplicative Schwarz.
   mutable VectorType residual_internal;
+
+  MPI_Comm mpi_communicator;
 };
 
 

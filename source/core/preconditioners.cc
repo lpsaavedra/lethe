@@ -194,6 +194,8 @@ PreconditionASM<VectorType>::build_patches(
 
   this->timer.enter_subsection("asm::indices");
 
+  this->mpi_communicator = dof_handler.get_mpi_communicator();
+
   std::vector<std::vector<types::global_dof_index>> patches;
 
   std::vector<
@@ -280,8 +282,7 @@ PreconditionASM<VectorType>::build_patches(
             if (!cell->is_artificial())
               min_rank = std::min(min_rank, cell->subdomain_id());
 
-          if (min_rank == Utilities::MPI::this_mpi_process(
-                            dof_handler.get_mpi_communicator()))
+          if (min_rank == Utilities::MPI::this_mpi_process(mpi_communicator))
             patch_to_cells.push_back(value);
         }
     }
@@ -586,27 +587,29 @@ PreconditionASM<VectorType>::vmult(VectorType &dst, const VectorType &src) const
     src_internal.copy_locally_owned_data_from(src);
   src_ptr.update_ghost_values();
 
-
   if (schwarz_type == Parameters::LinearSolver::MultigridSMType::additive)
     {
+      // apply patch solvers
       for (unsigned int c = 0; c < patches.size(); ++c)
         patch_solve(c, dst_ptr, src_ptr);
     }
   else if (schwarz_type ==
            Parameters::LinearSolver::MultigridSMType::multiplicative)
     {
-      for (unsigned int c = 0; c < patches.size(); ++c)
+      const auto [offset, n_patches_total] =
+        Utilities::MPI::partial_and_total_sum(patches.size(), mpi_communicator);
+
+      for (unsigned int c = 0; c < n_patches_total; ++c)
         {
           // Update the residual vector
           residual_internal.reinit(src_ptr, true);
-
           global_sparse_matrix.vmult(residual_internal, dst_ptr);
-
           residual_internal.sadd(-1.0, 1.0, src_ptr);
-
           residual_internal.update_ghost_values();
 
-          patch_solve(c, dst_ptr, residual_internal);
+          // apply patch solver
+          if ((offset <= c) && c < (offset + patches.size()))
+            patch_solve(c - offset, dst_ptr, residual_internal);
         }
     }
 
