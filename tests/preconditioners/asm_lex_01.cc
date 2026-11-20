@@ -12,6 +12,24 @@
 
 using namespace dealii;
 
+template <int dim>
+std::vector<types::global_dof_index>
+compute_renumbering(const DoFHandler<dim> &dof_handler, const unsigned int root)
+{
+  std::vector<types::global_dof_index> result;
+
+  if (Utilities::MPI::this_mpi_process(dof_handler.get_mpi_communicator()) ==
+      root)
+    {
+      result.resize(dof_handler.n_dofs());
+
+      for (unsigned int i = 0; i < result.size(); ++i)
+        result[i] = i;
+    }
+
+  return result;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -20,6 +38,7 @@ main(int argc, char **argv)
   const unsigned int dim                  = 2;
   const unsigned int n_global_refinements = 2;
   const unsigned int fe_degree            = 1;
+  const unsigned int root_process         = 0;
 
   parallel::distributed::Triangulation<dim> triangulation(MPI_COMM_WORLD);
   GridGenerator::hyper_cube(triangulation);
@@ -40,9 +59,12 @@ main(int argc, char **argv)
         patches.emplace_back(patch);
       }
 
-  const auto all_patches = Utilities::MPI::gather(MPI_COMM_WORLD, patches, 0);
+  const auto all_patches =
+    Utilities::MPI::gather(MPI_COMM_WORLD, patches, root_process);
 
-  if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+  const auto renumbering = compute_renumbering(dof_handler, root_process);
+
+  if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == root_process)
     {
       for (unsigned int i = 0;
            i < Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD);
@@ -53,6 +75,9 @@ main(int argc, char **argv)
           for (const auto &patch : all_patches[i])
             {
               auto temp = patch;
+              for (auto &i : temp)
+                i = renumbering[i];
+
               std::sort(temp.begin(), temp.end());
 
               for (const auto &i : temp)
