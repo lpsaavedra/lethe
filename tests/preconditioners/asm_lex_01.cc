@@ -146,20 +146,54 @@ test(const unsigned int                     fe_degree,
   std::vector<std::tuple<Point<dim>, std::vector<types::global_dof_index>>>
     patches;
 
-  for (const auto &cell : dof_handler.active_cell_iterators())
-    if (cell->is_locally_owned())
-      {
-        std::vector<types::global_dof_index> patch(
-          cell->get_fe().n_dofs_per_cell());
-        cell->get_dof_indices(patch);
+  if (false)
+    {
+      for (const auto &cell : dof_handler.active_cell_iterators())
+        if (cell->is_locally_owned())
+          {
+            std::vector<types::global_dof_index> patch(
+              cell->get_fe().n_dofs_per_cell());
+            cell->get_dof_indices(patch);
 
-        std::vector<types::global_dof_index> temp;
-        for (const auto i : patch)
-          if (!constraints.is_constrained(i))
-            temp.emplace_back(i);
+            std::vector<types::global_dof_index> temp;
+            for (const auto i : patch)
+              if (!constraints.is_constrained(i))
+                temp.emplace_back(i);
 
-        patches.emplace_back(cell->center(), temp);
-      }
+            patches.emplace_back(cell->center(), temp);
+          }
+    }
+  else
+    {
+      Parameters::LinearSolver parameters;
+      parameters.mg_smoother_sm_patch_type =
+        Parameters::LinearSolver::MultigridSMPatchType::cell;
+      parameters.mg_smoother_sm_closure_type =
+        Parameters::LinearSolver::MultigridSMClosureType::full_closure;
+      parameters.mg_smoother_sm_weighting_type =
+        Parameters::LinearSolver::MultigridSMWeightingType::none;
+
+      PreconditionASM<LinearAlgebra::distributed::Vector<double>> precon(
+        parameters);
+
+      precon.build_patches(dof_handler,
+                           constraints,
+                           {},
+                           numbers::invalid_unsigned_int);
+
+      const auto &my_patches = precon.get_global_patches();
+      const auto &my_points  = precon.get_patches_points();
+
+      for (unsigned int i = 0; i < my_patches.size(); ++i)
+        {
+          Point<dim> point;
+
+          for (unsigned int d = 0; d < dim; ++d)
+            point[d] = my_points[i][d];
+
+          patches.emplace_back(point, my_patches[i]);
+        }
+    }
 
   const auto all_patches =
     Utilities::MPI::gather(MPI_COMM_WORLD, patches, root_process);
