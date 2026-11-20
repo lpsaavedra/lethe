@@ -1,3 +1,6 @@
+--------------------------------------------------------------------------------
+Cell patch - full closure - FE_Q 1
+--------------------------------------------------------------------------------
 n_processes: 1
 n_dofs: 75
 n_active_cells: 16
@@ -68,3 +71,152 @@ patch (rank 0, #15): size 6
   component 0 (velocity): 63
   component 1 (velocity): 64
   component 2 (pressure): 74 65 68 71
+
+--------------------------------------------------------------------------------
+Cell patch - full closure - FE_Q 2
+--------------------------------------------------------------------------------
+n_processes: 1
+n_dofs: 243
+n_active_cells: 16
+n_patches: 16
+patch sizes sum/min/max: 344 / 17 / 27
+index sum: 38845
+patch (rank 0, #0): size 17
+  component 0 (velocity): 24 9 15 21
+  component 1 (velocity): 25 10 16 22
+  component 2 (pressure): 2 14 20 26 5 8 11 17 23
+patch (rank 0, #1): size 21
+  component 0 (velocity): 42 9 15 30 33 39
+  component 1 (velocity): 43 10 16 31 34 40
+  component 2 (pressure): 38 44 5 11 17 29 32 35 41
+patch (rank 0, #2): size 21
+  component 0 (velocity): 60 9 21 48 54 57
+  component 1 (velocity): 61 10 22 49 55 58
+  component 2 (pressure): 53 62 8 11 23 47 50 56 59
+patch (rank 0, #3): size 27
+  component 0 (velocity): 72 9 30 39 48 54 63 66 69
+  component 1 (velocity): 73 10 31 40 49 55 64 67 70
+  component 2 (pressure): 74 11 32 41 50 56 65 68 71
+patch (rank 0, #4): size 21
+  component 0 (velocity): 90 30 33 78 81 87
+  component 1 (velocity): 91 31 34 79 82 88
+  component 2 (pressure): 86 92 29 32 35 77 80 83 89
+patch (rank 0, #5): size 17
+  component 0 (velocity): 108 78 81 105
+  component 1 (velocity): 109 79 82 106
+  component 2 (pressure): 95 101 104 110 77 80 83 98 107
+patch (rank 0, #6): size 27
+  component 0 (velocity): 120 30 63 66 78 87 111 114 117
+  component 1 (velocity): 121 31 64 67 79 88 112 115 118
+  component 2 (pressure): 122 32 65 68 80 89 113 116 119
+patch (rank 0, #7): size 21
+  component 0 (velocity): 132 78 105 111 114 129
+  component 1 (velocity): 133 79 106 112 115 130
+  component 2 (pressure): 128 134 80 98 107 113 116 125 131
+patch (rank 0, #8): size 21
+  component 0 (velocity): 150 48 57 138 144 147
+  component 1 (velocity): 151 49 58 139 145 148
+  component 2 (pressure): 143 152 47 50 59 137 140 146 149
+patch (rank 0, #9): size 27
+  component 0 (velocity): 162 48 63 69 138 144 153 156 159
+  component 1 (velocity): 163 49 64 70 139 145 154 157 160
+  component 2 (pressure): 164 50 65 71 140 146 155 158 161
+patch (rank 0, #10): size 17
+  component 0 (velocity): 180 138 147 174
+  component 1 (velocity): 181 139 148 175
+  component 2 (pressure): 167 173 179 182 137 140 149 170 176
+patch (rank 0, #11): size 21
+  component 0 (velocity): 192 138 153 159 174 186
+  component 1 (velocity): 193 139 154 160 175 187
+  component 2 (pressure): 191 194 140 155 161 170 176 185 188
+patch (rank 0, #12): size 27
+  component 0 (velocity): 204 63 111 117 153 156 195 198 201
+  component 1 (velocity): 205 64 112 118 154 157 196 199 202
+  component 2 (pressure): 206 65 113 119 155 158 197 200 203
+patch (rank 0, #13): size 21
+  component 0 (velocity): 216 111 129 195 198 213
+  component 1 (velocity): 217 112 130 196 199 214
+  component 2 (pressure): 212 218 113 125 131 197 200 209 215
+patch (rank 0, #14): size 21
+  component 0 (velocity): 228 153 186 195 201 222
+  component 1 (velocity): 229 154 187 196 202 223
+  component 2 (pressure): 227 230 155 185 188 197 203 221 224
+patch (rank 0, #15): size 17
+  component 0 (velocity): 240 195 213 222
+  component 1 (velocity): 241 196 214 223
+  component 2 (pressure): 233 236 239 242 197 209 215 221 224
+
+--------------------------------------------------------------------------------
+Cell patch - full closure - FE_Q 3
+--------------------------------------------------------------------------------
+n_processes: 1
+n_dofs: 507
+n_active_cells: 16
+n_patches: 16
+patch sizes sum/min/max: 648 / 34 / 48
+index sum: 154667
+patch (rank 0, #0): size 34
+  component 0 (velocity): 36 37 38 39 9 18 19 30 31
+  component 1 (velocity): 40 41 42 43 10 20 21 32 33
+  component 2 (pressure): 2 16 17 28 29 44 45 46 47 5 8 11 22 23 34 35
+patch (rank 0, #1): size 40
+  component 0 (velocity): 72 73 74 75 9 18 19 51 54 55 66 67
+  component 1 (velocity): 76 77 78 79 10 20 21 52 56 57 68 69
+  component 2 (pressure): 64 65 80 81 82 83 5 11 22 23 50 53 58 59 70 71
+patch (rank 0, #2): size 40
+  component 0 (velocity): 108 109 110 111 9 30 31 87 96 97 102 103
+  component 1 (velocity): 112 113 114 115 10 32 33 88 98 99 104 105
+  component 2 (pressure): 94 95 116 117 118 119 8 11 34 35 86 89 100 101 106 107
+patch (rank 0, #3): size 48
+  component 0 (velocity): 135 136 137 138 9 51 66 67 87 96 97 120 123 124 129 130
+  component 1 (velocity): 139 140 141 142 10 52 68 69 88 98 99 121 125 126 131 132
+  component 2 (pressure): 143 144 145 146 11 53 70 71 89 100 101 122 127 128 133 134
+patch (rank 0, #4): size 40
+  component 0 (velocity): 171 172 173 174 51 54 55 150 153 154 165 166
+  component 1 (velocity): 175 176 177 178 52 56 57 151 155 156 167 168
+  component 2 (pressure): 163 164 179 180 181 182 50 53 58 59 149 152 157 158 169 170
+patch (rank 0, #5): size 34
+  component 0 (velocity): 207 208 209 210 150 153 154 201 202
+  component 1 (velocity): 211 212 213 214 151 155 156 203 204
+  component 2 (pressure): 185 193 194 199 200 215 216 217 218 149 152 157 158 188 205 206
+patch (rank 0, #6): size 48
+  component 0 (velocity): 234 235 236 237 51 120 123 124 150 165 166 219 222 223 228 229
+  component 1 (velocity): 238 239 240 241 52 121 125 126 151 167 168 220 224 225 230 231
+  component 2 (pressure): 242 243 244 245 53 122 127 128 152 169 170 221 226 227 232 233
+patch (rank 0, #7): size 40
+  component 0 (velocity): 261 262 263 264 150 201 202 219 222 223 255 256
+  component 1 (velocity): 265 266 267 268 151 203 204 220 224 225 257 258
+  component 2 (pressure): 253 254 269 270 271 272 152 188 205 206 221 226 227 248 259 260
+patch (rank 0, #8): size 40
+  component 0 (velocity): 297 298 299 300 87 102 103 276 285 286 291 292
+  component 1 (velocity): 301 302 303 304 88 104 105 277 287 288 293 294
+  component 2 (pressure): 283 284 305 306 307 308 86 89 106 107 275 278 289 290 295 296
+patch (rank 0, #9): size 48
+  component 0 (velocity): 324 325 326 327 87 120 129 130 276 285 286 309 312 313 318 319
+  component 1 (velocity): 328 329 330 331 88 121 131 132 277 287 288 310 314 315 320 321
+  component 2 (pressure): 332 333 334 335 89 122 133 134 278 289 290 311 316 317 322 323
+patch (rank 0, #10): size 34
+  component 0 (velocity): 360 361 362 363 276 291 292 348 349
+  component 1 (velocity): 364 365 366 367 277 293 294 350 351
+  component 2 (pressure): 338 346 347 358 359 368 369 370 371 275 278 295 296 341 352 353
+patch (rank 0, #11): size 40
+  component 0 (velocity): 387 388 389 390 276 309 318 319 348 349 375 376
+  component 1 (velocity): 391 392 393 394 277 310 320 321 350 351 377 378
+  component 2 (pressure): 385 386 395 396 397 398 278 311 322 323 341 352 353 374 379 380
+patch (rank 0, #12): size 48
+  component 0 (velocity): 414 415 416 417 120 219 228 229 309 312 313 399 402 403 408 409
+  component 1 (velocity): 418 419 420 421 121 220 230 231 310 314 315 400 404 405 410 411
+  component 2 (pressure): 422 423 424 425 122 221 232 233 311 316 317 401 406 407 412 413
+patch (rank 0, #13): size 40
+  component 0 (velocity): 441 442 443 444 219 255 256 399 402 403 435 436
+  component 1 (velocity): 445 446 447 448 220 257 258 400 404 405 437 438
+  component 2 (pressure): 433 434 449 450 451 452 221 248 259 260 401 406 407 428 439 440
+patch (rank 0, #14): size 40
+  component 0 (velocity): 468 469 470 471 309 375 376 399 408 409 456 457
+  component 1 (velocity): 472 473 474 475 310 377 378 400 410 411 458 459
+  component 2 (pressure): 466 467 476 477 478 479 311 374 379 380 401 412 413 455 460 461
+patch (rank 0, #15): size 34
+  component 0 (velocity): 495 496 497 498 399 435 436 456 457
+  component 1 (velocity): 499 500 501 502 400 437 438 458 459
+  component 2 (pressure): 482 487 488 493 494 503 504 505 506 401 428 439 440 455 460 461
+

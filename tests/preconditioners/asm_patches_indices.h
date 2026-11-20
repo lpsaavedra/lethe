@@ -2,28 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception OR LGPL-2.1-or-later
 
 /**
- * @brief Check indices for cell neighborhood patches considering Q1 elements for velocity and pressure in a 4x4 grid.
+ * @brief Print indices for cell patches considering a 4x4 grid.
  */
 
 #include <core/preconditioners.h>
 
 #include <deal.II/grid/grid_generator.h>
 
-
-using namespace dealii;
-
-int
-main(int argc, char **argv)
+void
+patches_indices_test(const unsigned int             &fe_degree,
+                     const Parameters::LinearSolver &parameters)
 {
-  Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, 1);
-
   const unsigned int dim = 2;
 
   parallel::distributed::Triangulation<dim> triangulation(MPI_COMM_WORLD);
   GridGenerator::hyper_cube(triangulation);
   triangulation.refine_global(2);
 
-  FESystem<dim>   fe(FE_Q<dim>(1), dim + 1);
+  FESystem<dim>   fe(FE_Q<dim>(fe_degree), dim + 1);
   DoFHandler<dim> dof_handler(triangulation);
   dof_handler.distribute_dofs(fe);
 
@@ -49,14 +45,6 @@ main(int argc, char **argv)
 
   std::shared_ptr<const Utilities::MPI::Partitioner> partitioner;
 
-  Parameters::LinearSolver parameters;
-  parameters.mg_smoother_sm_patch_type =
-    Parameters::LinearSolver::MultigridSMPatchType::cell_neighborhood;
-  parameters.mg_smoother_sm_closure_type =
-    Parameters::LinearSolver::MultigridSMClosureType::velocity_closure;
-  parameters.mg_smoother_sm_weighting_type =
-    Parameters::LinearSolver::MultigridSMWeightingType::none;
-
   PreconditionASM<LinearAlgebra::distributed::Vector<double>> preconditioner(
     parameters);
 
@@ -81,6 +69,7 @@ main(int argc, char **argv)
   double sizes_min = std::numeric_limits<double>::max();
   double sizes_max = 0.0;
   double index_sum = 0.0;
+
   for (const auto &patch : patches)
     {
       sizes_sum += patch.size();
@@ -103,7 +92,6 @@ main(int argc, char **argv)
                           patches[p].end());
     }
 
-
   // Gather the encoded patches of all ranks on rank 0 (collective call)
   const std::vector<std::vector<types::global_dof_index>> all_flat_patches =
     Utilities::MPI::gather(MPI_COMM_WORLD, flat_patches);
@@ -121,6 +109,34 @@ main(int argc, char **argv)
 
   if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
     {
+      std::string type_of_patch;
+      if (parameters.mg_smoother_sm_patch_type ==
+          Parameters::LinearSolver::MultigridSMPatchType::cell)
+        type_of_patch = "Cell patch";
+      else if (parameters.mg_smoother_sm_patch_type ==
+               Parameters::LinearSolver::MultigridSMPatchType::
+                 cell_neighborhood)
+        type_of_patch = "Cell neighborhood patch";
+      else if (parameters.mg_smoother_sm_patch_type ==
+               Parameters::LinearSolver::MultigridSMPatchType::vertex_star)
+        type_of_patch = "Vertex-star patch";
+
+      std::string type_of_closure;
+      if (parameters.mg_smoother_sm_closure_type ==
+          Parameters::LinearSolver::MultigridSMClosureType::full_closure)
+        type_of_closure = "full closure";
+      else if (parameters.mg_smoother_sm_closure_type ==
+               Parameters::LinearSolver::MultigridSMClosureType::
+                 velocity_closure)
+        type_of_closure = "velocity closure";
+      else if (parameters.mg_smoother_sm_closure_type ==
+               Parameters::LinearSolver::MultigridSMClosureType::interior)
+        type_of_closure = "interior closure";
+
+      std::cout << std::string(80, '-') << std::endl;
+      std::cout << type_of_patch << " - " << type_of_closure << " - FE_Q "
+                << fe_degree << std::endl;
+      std::cout << std::string(80, '-') << std::endl;
       std::cout << "n_processes: "
                 << Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD) << std::endl;
       std::cout << "n_dofs: " << dof_handler.n_dofs() << std::endl;
@@ -165,7 +181,7 @@ main(int argc, char **argv)
               it += size;
             }
         }
-    }
 
-  return 0;
+      std::cout << std::endl;
+    }
 }
