@@ -22,17 +22,22 @@ main(int argc, char **argv)
   parameters.mg_smoother_sm_weighting_type =
     Parameters::LinearSolver::MultigridSMWeightingType::none;
 
-  for (unsigned int p = 1; p <= 3; ++p)
+  for (const auto closure_type : magic_enum::enum_values<
+         Parameters::LinearSolver::MultigridSMClosureType>())
     {
-      test(p, parameters);
-      test(p,
-           parameters,
-           std::vector<types::boundary_id>{0},
-           std::vector<types::boundary_id>{});
-      test(p,
-           parameters,
-           std::vector<types::boundary_id>{},
-           std::vector<types::boundary_id>{0});
+      parameters.mg_smoother_sm_closure_type = closure_type;
+      for (unsigned int p = 1; p <= 3; ++p)
+        {
+          test(p, parameters);
+          test(p,
+               parameters,
+               std::vector<types::boundary_id>{0},
+               std::vector<types::boundary_id>{});
+          test(p,
+               parameters,
+               std::vector<types::boundary_id>{},
+               std::vector<types::boundary_id>{0});
+        }
     }
 
   return 0;

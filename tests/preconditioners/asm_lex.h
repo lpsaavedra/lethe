@@ -281,6 +281,28 @@ test(const unsigned int                     fe_degree,
 
   if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == root_process)
     {
+      const std::string type_of_patch = std::string(
+        magic_enum::enum_name(parameters.mg_smoother_sm_patch_type));
+
+      const std::string type_of_closure = std::string(
+        magic_enum::enum_name(parameters.mg_smoother_sm_closure_type));
+
+      std::cout << std::string(80, '-') << std::endl;
+      std::cout << type_of_patch << " - " << type_of_closure << " - FE_Q "
+                << fe_degree << " - constrained faces: ";
+
+      std::cout << "u {";
+      for (const auto &i : velocity_bid)
+        std::cout << i;
+      std::cout << "}, ";
+
+      std::cout << "p {";
+      for (const auto &i : pressure_bid)
+        std::cout << i;
+      std::cout << "}" << std::endl;
+
+      std::cout << std::string(80, '-') << std::endl;
+
       for (unsigned int i = 0;
            i < Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD);
            ++i)
