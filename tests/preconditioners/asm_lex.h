@@ -203,19 +203,19 @@ test(const unsigned int                     fe_degree,
       const unsigned int p = fe_degree;
       const unsigned int N = n_cells * p + 1;
 
-      unsigned int ix_min, ix_max;
-      unsigned int iy_min, iy_max;
-
       using PatchType   = Parameters::LinearSolver::MultigridSMPatchType;
       using ClosureType = Parameters::LinearSolver::MultigridSMClosureType;
 
       const auto patch_type   = parameters.mg_smoother_sm_patch_type;
       const auto closure_type = parameters.mg_smoother_sm_closure_type;
 
-      if (patch_type == PatchType::cell ||
-          patch_type == PatchType::cell_neighborhood)
+      unsigned int cx_min, cx_max, cy_min, cy_max;
+
+      if (patch_type == PatchType::cell)
         {
-          // cell_mid_point represents the cell center.
+          AssertThrow(closure_type == ClosureType::full_closure,
+                      ExcNotImplemented());
+
           const unsigned int cx =
             static_cast<unsigned int>(cell_mid_point[0] * n_cells);
           const unsigned int cy =
@@ -224,34 +224,34 @@ test(const unsigned int                     fe_degree,
           AssertIndexRange(cx, n_cells);
           AssertIndexRange(cy, n_cells);
 
-          if (patch_type == PatchType::cell)
-            {
-              AssertThrow(closure_type == ClosureType::full_closure,
-                          ExcNotImplemented());
+          // Single-cell patch
+          cx_min = cx;
+          cx_max = cx + 1;
 
-              // Single-cell patch
-              ix_min = cx * p;
-              ix_max = (cx + 1) * p;
+          cy_min = cy;
+          cy_max = cy + 1;
+        }
+      else if (patch_type == PatchType::cell_neighborhood)
+        {
+          const unsigned int cx =
+            static_cast<unsigned int>(cell_mid_point[0] * n_cells);
+          const unsigned int cy =
+            static_cast<unsigned int>(cell_mid_point[1] * n_cells);
 
-              iy_min = cy * p;
-              iy_max = (cy + 1) * p;
-            }
-          else
-            {
-              // Cell neighborhood: up to 3x3 cells
-              ix_min = (cx > 0 ? cx - 1 : 0) * p;
-              ix_max = std::min(cx + 2, n_cells) * p;
+          AssertIndexRange(cx, n_cells);
+          AssertIndexRange(cy, n_cells);
 
-              iy_min = (cy > 0 ? cy - 1 : 0) * p;
-              iy_max = std::min(cy + 2, n_cells) * p;
-            }
+          // Cell neighborhood: up to 3x3 cells
+          cx_min = (cx > 0) ? cx - 1 : 0;
+          cx_max = std::min(cx + 2, n_cells);
+
+          cy_min = (cy > 0) ? cy - 1 : 0;
+          cy_max = std::min(cy + 2, n_cells);
         }
       else if (patch_type == PatchType::vertex_star)
         {
-          // cell_mid_point represents the vertex position.
           const unsigned int vx =
             static_cast<unsigned int>(std::lround(cell_mid_point[0] * n_cells));
-
           const unsigned int vy =
             static_cast<unsigned int>(std::lround(cell_mid_point[1] * n_cells));
 
@@ -259,16 +259,23 @@ test(const unsigned int                     fe_degree,
           AssertIndexRange(vy, n_cells + 1);
 
           // Vertex star: up to 2x2 cells
-          ix_min = (vx > 0 ? vx - 1 : 0) * p;
-          ix_max = std::min(vx + 1, n_cells) * p;
+          cx_min = (vx > 0) ? vx - 1 : 0;
+          cx_max = std::min(vx + 1, n_cells);
 
-          iy_min = (vy > 0 ? vy - 1 : 0) * p;
-          iy_max = std::min(vy + 1, n_cells) * p;
+          cy_min = (vy > 0) ? vy - 1 : 0;
+          cy_max = std::min(vy + 1, n_cells);
         }
       else
         {
           AssertThrow(false, ExcNotImplemented());
         }
+
+      // Convert cell ranges to global DoF ranges
+      const unsigned int ix_min = cx_min * p;
+      const unsigned int ix_max = cx_max * p;
+
+      const unsigned int iy_min = cy_min * p;
+      const unsigned int iy_max = cy_max * p;
 
       for (unsigned int c = 0; c < dim + 1; ++c)
         {
@@ -283,15 +290,12 @@ test(const unsigned int                     fe_degree,
           for (unsigned int iy = iy_min; iy <= iy_max; ++iy)
             for (unsigned int ix = ix_min; ix <= ix_max; ++ix)
               {
-                // Artificial patch interfaces.
-                // Physical domain boundaries are not artificial interfaces.
                 const bool on_internal_patch_face =
                   ((ix == ix_min && ix_min > 0) ||
                    (ix == ix_max && ix_max < N - 1) ||
                    (iy == iy_min && iy_min > 0) ||
                    (iy == iy_max && iy_max < N - 1));
 
-                // Closure selection
                 bool include = false;
 
                 switch (closure_type)
@@ -315,7 +319,6 @@ test(const unsigned int                     fe_degree,
                 if (!include)
                   continue;
 
-                // Exclude constrained physical boundary DoFs
                 if ((ix == 0 && has_bid(0)) || (ix == N - 1 && has_bid(1)) ||
                     (iy == 0 && has_bid(2)) || (iy == N - 1 && has_bid(3)))
                   continue;
@@ -326,23 +329,30 @@ test(const unsigned int                     fe_degree,
 
       if (cell_dof_indices != cell_dof_indices_reference)
         {
-          std::cout << "Error: " << std::endl;
-          std::cout << std::string(magic_enum::enum_name(patch_type))
+          std::cout << "Error for patch [" << cx_min << "," << cx_max << "]X["
+                    << cy_min << "," << cy_max << "]:" << std::endl;
+          std::cout << "patch:     "
+                    << std::string(magic_enum::enum_name(patch_type))
                     << std::endl;
 
-          std::cout << std::string(magic_enum::enum_name(closure_type))
+          std::cout << "closure:   "
+                    << std::string(magic_enum::enum_name(closure_type))
                     << std::endl;
 
+          std::cout << "bid_v:     ";
           for (const auto i : velocity_bid)
             std::cout << i << " ";
           std::cout << std::endl;
+          std::cout << "bid_p:     ";
           for (const auto i : pressure_bid)
             std::cout << i << " ";
           std::cout << std::endl;
 
+          std::cout << "indices:   ";
           for (const auto &i : cell_dof_indices)
             std::cout << i << " ";
           std::cout << std::endl;
+          std::cout << "reference: ";
           for (const auto &i : cell_dof_indices_reference)
             std::cout << i << " ";
           std::cout << std::endl;
