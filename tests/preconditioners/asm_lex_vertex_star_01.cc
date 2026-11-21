@@ -17,8 +17,6 @@ main(int argc, char **argv)
   Parameters::LinearSolver parameters;
   parameters.mg_smoother_sm_patch_type =
     Parameters::LinearSolver::MultigridSMPatchType::vertex_star;
-  parameters.mg_smoother_sm_closure_type =
-    Parameters::LinearSolver::MultigridSMClosureType::full_closure;
   parameters.mg_smoother_sm_weighting_type =
     Parameters::LinearSolver::MultigridSMWeightingType::none;
 
@@ -26,6 +24,7 @@ main(int argc, char **argv)
          Parameters::LinearSolver::MultigridSMClosureType>())
     {
       parameters.mg_smoother_sm_closure_type = closure_type;
+
       for (unsigned int p = 1; p <= 3; ++p)
         {
           test(p, parameters);
