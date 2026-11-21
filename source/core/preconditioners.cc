@@ -592,6 +592,7 @@ PreconditionASM<VectorType>::vmult(VectorType &dst, const VectorType &src) const
       // apply patch solvers
       for (unsigned int c = 0; c < patches.size(); ++c)
         patch_solve(c, dst_ptr, src_ptr);
+      dst_ptr.compress(VectorOperation::add);
     }
   else if (schwarz_type ==
            Parameters::LinearSolver::MultigridSMType::multiplicative)
@@ -610,11 +611,11 @@ PreconditionASM<VectorType>::vmult(VectorType &dst, const VectorType &src) const
           // apply patch solver
           if ((offset <= c) && c < (offset + patches.size()))
             patch_solve(c - offset, dst_ptr, residual_internal);
+          dst_ptr.compress(VectorOperation::add);
         }
     }
 
   src_ptr.zero_out_ghost_values();
-  dst_ptr.compress(VectorOperation::add);
 
   if (dst_internal.size() != 0)
     dst.copy_locally_owned_data_from(dst_internal);
