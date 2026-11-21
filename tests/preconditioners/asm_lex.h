@@ -198,130 +198,57 @@ test(const unsigned int                     fe_degree,
                                    &cell_dof_indices) {
     std::vector<types::global_dof_index> cell_dof_indices_reference;
 
-    if (parameters.mg_smoother_sm_patch_type ==
-        Parameters::LinearSolver::MultigridSMPatchType::cell)
+    constexpr unsigned int n_cells = 1u << n_global_refinements;
+
+    const unsigned int p = fe_degree;
+    const unsigned int N = n_cells * p + 1;
+
+    unsigned int ix_min, ix_max;
+    unsigned int iy_min, iy_max;
+
+    using PatchType   = Parameters::LinearSolver::MultigridSMPatchType;
+    using ClosureType = Parameters::LinearSolver::MultigridSMClosureType;
+
+    const auto patch_type   = parameters.mg_smoother_sm_patch_type;
+    const auto closure_type = parameters.mg_smoother_sm_closure_type;
+
+    if (patch_type == PatchType::cell ||
+        patch_type == PatchType::cell_neighborhood)
       {
-        Assert(parameters.mg_smoother_sm_closure_type ==
-                 Parameters::LinearSolver::MultigridSMClosureType::full_closure,
-               ExcNotImplemented());
-
-        constexpr unsigned int n_cells = 1u << n_global_refinements;
-
-        const unsigned int p = fe_degree;
-        const unsigned int N = n_cells * p + 1;
-
+        // cell_mid_point represents the cell center.
         const unsigned int cx =
           static_cast<unsigned int>(cell_mid_point[0] * n_cells);
         const unsigned int cy =
           static_cast<unsigned int>(cell_mid_point[1] * n_cells);
 
-        for (unsigned int c = 0; c < dim + 1; ++c)
-          for (unsigned int j = 0; j <= p; ++j)
-            for (unsigned int i = 0; i <= p; ++i)
-              {
-                const unsigned int ix = cx * p + i;
-                const unsigned int iy = cy * p + j;
+        AssertIndexRange(cx, n_cells);
+        AssertIndexRange(cy, n_cells);
 
-                const auto &bids = (c < dim) ? velocity_bid : pressure_bid;
+        if (patch_type == PatchType::cell)
+          {
+            AssertThrow(closure_type == ClosureType::full_closure,
+                        ExcNotImplemented());
 
-                const auto has_bid = [&](const types::boundary_id bid) {
-                  return std::find(bids.begin(), bids.end(), bid) != bids.end();
-                };
+            // Single-cell patch
+            ix_min = cx * p;
+            ix_max = (cx + 1) * p;
 
-                // Skip constrained boundary DoFs
-                if ((ix == 0 && has_bid(0)) || (ix == N - 1 && has_bid(1)) ||
-                    (iy == 0 && has_bid(2)) || (iy == N - 1 && has_bid(3)))
-                  continue;
+            iy_min = cy * p;
+            iy_max = (cy + 1) * p;
+          }
+        else
+          {
+            // Cell neighborhood: up to 3x3 cells
+            ix_min = (cx > 0 ? cx - 1 : 0) * p;
+            ix_max = std::min(cx + 2, n_cells) * p;
 
-                cell_dof_indices_reference.push_back(c * N * N + iy * N + ix);
-              }
+            iy_min = (cy > 0 ? cy - 1 : 0) * p;
+            iy_max = std::min(cy + 2, n_cells) * p;
+          }
       }
-    else if (parameters.mg_smoother_sm_patch_type ==
-             Parameters::LinearSolver::MultigridSMPatchType::cell_neighborhood)
+    else if (patch_type == PatchType::vertex_star)
       {
-        constexpr unsigned int n_cells = 1u << n_global_refinements;
-
-        const unsigned int p = fe_degree;
-        const unsigned int N = n_cells * p + 1;
-
-        const unsigned int cx =
-          static_cast<unsigned int>(cell_mid_point[0] * n_cells);
-        const unsigned int cy =
-          static_cast<unsigned int>(cell_mid_point[1] * n_cells);
-
-        // Patch bounds in global DoF coordinates
-        const unsigned int ix_min = (cx > 0) ? (cx - 1) * p : 0;
-        const unsigned int iy_min = (cy > 0) ? (cy - 1) * p : 0;
-
-        const unsigned int ix_max = std::min((cx + 2) * p, N - 1);
-        const unsigned int iy_max = std::min((cy + 2) * p, N - 1);
-
-        for (unsigned int c = 0; c < dim + 1; ++c)
-          for (unsigned int iy = iy_min; iy <= iy_max; ++iy)
-            for (unsigned int ix = ix_min; ix <= ix_max; ++ix)
-              {
-                const bool is_velocity = (c < dim);
-
-                // Only artificial patch interfaces count as patch boundaries.
-                // Physical domain boundaries are NOT artificial interfaces.
-                const bool on_internal_patch_face =
-                  ((ix == ix_min && ix_min > 0) ||
-                   (ix == ix_max && ix_max < N - 1) ||
-                   (iy == iy_min && iy_min > 0) ||
-                   (iy == iy_max && iy_max < N - 1));
-
-                bool include = false;
-
-                switch (parameters.mg_smoother_sm_closure_type)
-                  {
-                    case Parameters::LinearSolver::MultigridSMClosureType::
-                      full_closure:
-                      include = true;
-                      break;
-
-                    case Parameters::LinearSolver::MultigridSMClosureType::
-                      velocity_closure:
-                      include = is_velocity || !on_internal_patch_face;
-                      break;
-
-                    case Parameters::LinearSolver::MultigridSMClosureType::
-                      interior:
-                      include = !on_internal_patch_face;
-                      break;
-
-                    default:
-                      AssertThrow(false, ExcNotImplemented());
-                  }
-
-                if (!include)
-                  continue;
-
-                // Exclude constrained physical boundary DoFs.
-                const auto &bids = is_velocity ? velocity_bid : pressure_bid;
-
-                const auto has_bid = [&](const types::boundary_id bid) {
-                  return std::find(bids.begin(), bids.end(), bid) != bids.end();
-                };
-
-                if ((ix == 0 && has_bid(0)) || (ix == N - 1 && has_bid(1)) ||
-                    (iy == 0 && has_bid(2)) || (iy == N - 1 && has_bid(3)))
-                  continue;
-
-                cell_dof_indices_reference.push_back(c * N * N + iy * N + ix);
-              }
-
-        if (cell_dof_indices != cell_dof_indices_reference)
-          std::cout << "Error in  (" << cx << ", " << cy << "):" << std::endl;
-      }
-    else if (parameters.mg_smoother_sm_patch_type ==
-             Parameters::LinearSolver::MultigridSMPatchType::vertex_star)
-      {
-        constexpr unsigned int n_cells = 1u << n_global_refinements;
-
-        const unsigned int p = fe_degree;
-        const unsigned int N = n_cells * p + 1;
-
-        // Vertex coordinates in the Cartesian cell grid
+        // cell_mid_point represents the vertex position.
         const unsigned int vx =
           static_cast<unsigned int>(std::lround(cell_mid_point[0] * n_cells));
 
@@ -331,71 +258,70 @@ test(const unsigned int                     fe_degree,
         AssertIndexRange(vx, n_cells + 1);
         AssertIndexRange(vy, n_cells + 1);
 
-        // Vertex-star patch bounds in global DoF coordinates.
-        // The star consists of up to four cells sharing the vertex.
-        const unsigned int ix_min = (vx > 0) ? (vx - 1) * p : 0;
-        const unsigned int iy_min = (vy > 0) ? (vy - 1) * p : 0;
+        // Vertex star: up to 2x2 cells
+        ix_min = (vx > 0 ? vx - 1 : 0) * p;
+        ix_max = std::min(vx + 1, n_cells) * p;
 
-        const unsigned int ix_max = std::min((vx + 1) * p, N - 1);
-        const unsigned int iy_max = std::min((vy + 1) * p, N - 1);
-
-        for (unsigned int c = 0; c < dim + 1; ++c)
-          for (unsigned int iy = iy_min; iy <= iy_max; ++iy)
-            for (unsigned int ix = ix_min; ix <= ix_max; ++ix)
-              {
-                const bool is_velocity = (c < dim);
-
-                // Artificial patch interfaces only.
-                // Physical domain boundaries are not artificial interfaces.
-                const bool on_internal_patch_face =
-                  ((ix == ix_min && ix_min > 0) ||
-                   (ix == ix_max && ix_max < N - 1) ||
-                   (iy == iy_min && iy_min > 0) ||
-                   (iy == iy_max && iy_max < N - 1));
-
-                bool include = false;
-
-                switch (parameters.mg_smoother_sm_closure_type)
-                  {
-                    case Parameters::LinearSolver::MultigridSMClosureType::
-                      full_closure:
-                      include = true;
-                      break;
-
-                    case Parameters::LinearSolver::MultigridSMClosureType::
-                      velocity_closure:
-                      include = is_velocity || !on_internal_patch_face;
-                      break;
-
-                    case Parameters::LinearSolver::MultigridSMClosureType::
-                      interior:
-                      include = !on_internal_patch_face;
-                      break;
-
-                    default:
-                      AssertThrow(false, ExcNotImplemented());
-                  }
-
-                if (!include)
-                  continue;
-
-                // Exclude constrained physical boundary DoFs
-                const auto &bids = is_velocity ? velocity_bid : pressure_bid;
-
-                const auto has_bid = [&](const types::boundary_id bid) {
-                  return std::find(bids.begin(), bids.end(), bid) != bids.end();
-                };
-
-                if ((ix == 0 && has_bid(0)) || (ix == N - 1 && has_bid(1)) ||
-                    (iy == 0 && has_bid(2)) || (iy == N - 1 && has_bid(3)))
-                  continue;
-
-                cell_dof_indices_reference.push_back(c * N * N + iy * N + ix);
-              }
+        iy_min = (vy > 0 ? vy - 1 : 0) * p;
+        iy_max = std::min(vy + 1, n_cells) * p;
       }
     else
       {
         AssertThrow(false, ExcNotImplemented());
+      }
+
+    for (unsigned int c = 0; c < dim + 1; ++c)
+      {
+        const bool is_velocity = (c < dim);
+
+        const auto &bids = is_velocity ? velocity_bid : pressure_bid;
+
+        const auto has_bid = [&](const types::boundary_id bid) {
+          return std::find(bids.begin(), bids.end(), bid) != bids.end();
+        };
+
+        for (unsigned int iy = iy_min; iy <= iy_max; ++iy)
+          for (unsigned int ix = ix_min; ix <= ix_max; ++ix)
+            {
+              // Artificial patch interfaces.
+              // Physical domain boundaries are not artificial interfaces.
+              const bool on_internal_patch_face =
+                ((ix == ix_min && ix_min > 0) ||
+                 (ix == ix_max && ix_max < N - 1) ||
+                 (iy == iy_min && iy_min > 0) ||
+                 (iy == iy_max && iy_max < N - 1));
+
+              // Closure selection
+              bool include = false;
+
+              switch (closure_type)
+                {
+                  case ClosureType::full_closure:
+                    include = true;
+                    break;
+
+                  case ClosureType::velocity_closure:
+                    include = is_velocity || !on_internal_patch_face;
+                    break;
+
+                  case ClosureType::interior:
+                    include = !on_internal_patch_face;
+                    break;
+
+                  default:
+                    AssertThrow(false, ExcNotImplemented());
+                }
+
+              if (!include)
+                continue;
+
+              // Exclude constrained physical boundary DoFs
+              if ((ix == 0 && has_bid(0)) || (ix == N - 1 && has_bid(1)) ||
+                  (iy == 0 && has_bid(2)) || (iy == N - 1 && has_bid(3)))
+                continue;
+
+              cell_dof_indices_reference.push_back(c * N * N + iy * N + ix);
+            }
       }
 
     if (cell_dof_indices != cell_dof_indices_reference)
