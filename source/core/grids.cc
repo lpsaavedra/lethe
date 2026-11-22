@@ -28,6 +28,133 @@
 #include <numbers>
 #include <string>
 
+template <int dim, int spacedim>
+void
+cylinder(Triangulation<dim, spacedim> &triangulation, const bool symm = false)
+{
+  (void)triangulation;
+  (void)symm;
+  AssertThrow(false, ExcNotImplemented());
+}
+
+void
+cylinder(Triangulation<2, 2> &triangulation, const bool symm = false)
+{
+  constexpr int dim = 2;
+
+  using namespace dealii;
+
+  const double length            = 2.2;
+  const double height            = 0.41;
+  const double cylinder_position = 0.2;
+  const double cylinder_diameter = 0.1;
+
+  const double shift = symm ? 0.00 : 0.005;
+
+  dealii::Triangulation<dim, dim> tria1, tria2, tria3, tria4, tria5, tria6,
+    tria7, tria8, tria9, tria_tmp;
+
+  // center
+  GridGenerator::hyper_cube_with_cylindrical_hole(
+    tria1, cylinder_diameter / 2., cylinder_diameter, 0.05, 1, false);
+
+  GridGenerator::subdivided_hyper_rectangle(
+    tria2,
+    {2, 1},
+    Point<2>(-cylinder_diameter, -cylinder_diameter),
+    Point<2>(cylinder_diameter, -height / 2. + shift));
+
+  GridGenerator::subdivided_hyper_rectangle(
+    tria3,
+    {2, 1},
+    Point<2>(-cylinder_diameter, cylinder_diameter),
+    Point<2>(cylinder_diameter, height / 2. + shift));
+
+  // right
+  GridGenerator::subdivided_hyper_rectangle(
+    tria4,
+    {18, 2},
+    Point<2>(cylinder_diameter, -cylinder_diameter),
+    Point<2>(length - cylinder_position, cylinder_diameter));
+
+  GridGenerator::subdivided_hyper_rectangle(
+    tria5,
+    {18, 1},
+    Point<2>(cylinder_diameter, cylinder_diameter),
+    Point<2>(length - cylinder_position, height / 2. + shift));
+
+  GridGenerator::subdivided_hyper_rectangle(
+    tria6,
+    {18, 1},
+    Point<2>(cylinder_diameter, -height / 2. + shift),
+    Point<2>(length - cylinder_position, -cylinder_diameter));
+
+  // left
+  GridGenerator::subdivided_hyper_rectangle(
+    tria7,
+    {1, 2},
+    Point<2>(-cylinder_position, -cylinder_diameter),
+    Point<2>(-cylinder_diameter, cylinder_diameter));
+
+  GridGenerator::subdivided_hyper_rectangle(
+    tria8,
+    {1, 1},
+    Point<2>(-cylinder_position, cylinder_diameter),
+    Point<2>(-cylinder_diameter, height / 2. + shift));
+
+  GridGenerator::subdivided_hyper_rectangle(
+    tria9,
+    {1, 1},
+    Point<2>(-cylinder_position, -height / 2. + shift),
+    Point<2>(-cylinder_diameter, -cylinder_diameter));
+
+  tria_tmp.set_mesh_smoothing(triangulation.get_mesh_smoothing());
+  GridGenerator::merge_triangulations(
+    {&tria1, &tria2, &tria3, &tria4, &tria5, &tria6, &tria7, &tria8, &tria9},
+    tria_tmp,
+    1.e-12,
+    true);
+  triangulation.copy_triangulation(tria_tmp);
+
+  triangulation.set_manifold(0, PolarManifold<2>(Point<2>()));
+
+
+  for (auto cell : triangulation.active_cell_iterators())
+    {
+      for (auto f : GeometryInfo<2>::face_indices())
+        {
+          const auto face = cell->face(f);
+
+          if (!face->at_boundary())
+            continue;
+
+          /*
+           * We want slip boundary conditions (i.e. indicator 1) at top and
+           * bottom of the channel, as well as on the obstacle. On the left
+           * side we set inflow conditions (indicator 2) and on the right
+           * side we set indicator 0, i.e. do nothing.
+           */
+
+          const auto center = face->center();
+
+          if (center[0] > length - cylinder_position - 1.e-6)
+            // outflow
+            face->set_boundary_id(1);
+          else if (center[0] < -cylinder_position + 1.e-6)
+            // inflow
+            face->set_boundary_id(0);
+          else if (std::abs(center[1] - (+height / 2. + shift)) < 1.e-6)
+            // wall (top)
+            face->set_boundary_id(2);
+          else if (std::abs(center[1] - (-height / 2. + shift)) < 1.e-6)
+            // wall (bottom)
+            face->set_boundary_id(2);
+          else
+            face->set_boundary_id(3);
+        }
+    }
+}
+
 
 /**
  * @brief Warn when a mesh scaling factor is applied to a grid which carries curved manifolds
@@ -258,6 +385,16 @@ attach_grid_to_triangulation(
           grid.make_grid(triangulation);
 
           GridTools::scale(mesh_parameters.scale, triangulation);
+        }
+      // Turek grid
+      else if (grid_type == "turek")
+        {
+          AssertThrow(
+            !mesh_parameters.simplex,
+            ExcMessage(
+              "Unsupported mesh type - periodic hills mesh with simplex is not supported"));
+
+          cylinder(triangulation, false);
         }
       else if (grid_type == "fichera_oven")
         {
