@@ -6,6 +6,7 @@
 
 #include <core/exceptions.h>
 #include <core/multiphysics.h>
+#include <core/precondition_relaxation.h>
 #include <core/preconditioners.h>
 
 #include <solvers/fluid_dynamics_matrix_free_operators.h>
@@ -62,7 +63,7 @@ protected:
   using OperatorType               = NavierStokesOperatorBase<dim, MGNumber>;
   using SmootherPreconditionerType = PreconditionBase<MGVectorType>;
   using SmootherType =
-    PreconditionRelaxation<OperatorType, SmootherPreconditionerType>;
+    MyPreconditionRelaxation<OperatorType, SmootherPreconditionerType>;
   using ChebyshevSmootherType =
     PreconditionChebyshev<OperatorType,
                           MGVectorType,
