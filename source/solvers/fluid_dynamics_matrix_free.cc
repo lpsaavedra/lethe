@@ -1101,6 +1101,8 @@ MFNavierStokesPreconditionGMGBase<dim>::reinit(
       // Create mappings for each level
       if (this->simulation_parameters.mortar_parameters.enable)
         this->mappings.resize(this->minlevel, this->maxlevel);
+      else if (false /* PM: TODO (deformed mesh) */)
+        this->mappings.resize(this->minlevel, this->maxlevel);
 
       // Apply constraints and create mg operators for each level
       for (unsigned int level = this->minlevel; level <= this->maxlevel;
@@ -1140,6 +1142,36 @@ MFNavierStokesPreconditionGMGBase<dim>::reinit(
               else
                 AssertThrow(false,
                             ExcMessage("Invalid mortar interface type."));
+
+              level_mapping = this->mappings[level];
+            }
+          else if (false /* PM: TODO (deformed mesh) */)
+            {
+              this->mappings[level] = std::make_shared<MappingQCache<dim>>(
+                this->dof_handlers[level].get_fe().degree);
+
+              const double       deformation = 0.15;
+              const unsigned int frequency   = 1;
+              const double       left        = -1.0;
+              const double       right       = +1.0;
+
+              FunctionFromFunctionObjects<dim> transformation_function(
+                [&](const auto &chart_point, const auto c) {
+                  double sinval = deformation;
+                  for (unsigned int d = 0; d < dim; ++d)
+                    sinval *=
+                      std::sin(frequency * 2.0 * dealii::numbers::PI *
+                               (chart_point(d) - left) / (right - left));
+
+                  return chart_point[c] + sinval;
+                },
+                dim);
+
+              this->mappings[level]->initialize(
+                *mapping,
+                this->dof_handlers[level].get_triangulation(),
+                transformation_function,
+                false);
 
               level_mapping = this->mappings[level];
             }
@@ -1470,10 +1502,10 @@ MFNavierStokesPreconditionGMGBase<dim>::initialize()
                Parameters::LinearSolver::MultigridSmootherPreconditionerType::
                  additive_schwarz_method)
         {
-          if (mg_smoother_preconditioners[level] == nullptr)
-            mg_smoother_preconditioners[level] =
-              std::make_shared<PreconditionASM<MGVectorType>>(
-                linear_solver_parameters);
+          // if (mg_smoother_preconditioners[level] == nullptr)
+          mg_smoother_preconditioners[level] =
+            std::make_shared<PreconditionASM<MGVectorType>>(
+              linear_solver_parameters);
 
           dynamic_cast<PreconditionASM<MGVectorType> *>(
             mg_smoother_preconditioners[level].get())
@@ -2538,12 +2570,14 @@ FluidDynamicsMatrixFree<dim>::solve()
       this->rotate_rotor_mapping(true);
     }
   else
-    read_mesh_and_manifolds(
-      *this->triangulation,
-      this->simulation_parameters.mesh,
-      this->simulation_parameters.manifolds_parameters,
-      this->simulation_parameters.restart_parameters.restart,
-      this->simulation_parameters.boundary_conditions.periodic_boundaries);
+    {
+      read_mesh_and_manifolds(
+        *this->triangulation,
+        this->simulation_parameters.mesh,
+        this->simulation_parameters.manifolds_parameters,
+        this->simulation_parameters.restart_parameters.restart,
+        this->simulation_parameters.boundary_conditions.periodic_boundaries);
+    }
 
   this->computing_timer.leave_subsection("Read mesh and manifolds");
 
@@ -2663,6 +2697,32 @@ FluidDynamicsMatrixFree<dim>::setup_dofs_fd()
 
   // If enabled, rotate rotor mapping
   this->rotate_rotor_mapping(false);
+
+  if (false /* PM: TODO (deformed mesh) */)
+    {
+      const double       deformation = 0.15;
+      const unsigned int frequency   = 1;
+      const double       left        = -1.0;
+      const double       right       = +1.0;
+
+      FunctionFromFunctionObjects<dim> transformation_function(
+        [&](const auto &chart_point, const auto c) {
+          double sinval = deformation;
+          for (unsigned int d = 0; d < dim; ++d)
+            sinval *= std::sin(frequency * 2.0 * dealii::numbers::PI *
+                               (chart_point(d) - left) / (right - left));
+
+          return chart_point[c] + sinval;
+        },
+        dim);
+
+      this->mapping_cache =
+        std::make_shared<MappingQCache<dim>>(this->velocity_fem_degree);
+      this->mapping_cache->initialize(*this->mapping,
+                                      this->dof_handler->get_triangulation(),
+                                      transformation_function,
+                                      false);
+    }
 
   // Non-zero constraints
   this->define_non_zero_constraints();

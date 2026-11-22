@@ -559,10 +559,10 @@ protected:
   inline std::shared_ptr<Mapping<dim>>
   get_mapping()
   {
-    if (!this->simulation_parameters.mortar_parameters.enable)
-      return this->mapping;
-    else
+    if (this->mapping_cache)
       return this->mapping_cache;
+    else
+      return this->mapping;
   }
 
   /**
