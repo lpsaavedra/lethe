@@ -506,7 +506,7 @@ PreconditionASM<VectorType>::build_blocks(
 
           if (patch_approximation_type ==
               Parameters::LinearSolver::MultigridSMPatchApproximationType::
-                sparse_schur_complement)
+                schur_complement)
             {
               blocks[b] =
                 compute_schur_complement_matrix(blocks[b],

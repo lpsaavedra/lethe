@@ -1967,7 +1967,7 @@ namespace Parameters
       velocity_block_diagonal,
       pressure_block_diagonal,
       velocity_pressure_block_diagonal,
-      sparse_schur_complement
+      schur_complement
     };
 
     MultigridSMPatchApproximationType mg_smoother_sm_patch_approximation_type =
