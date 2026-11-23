@@ -1610,6 +1610,8 @@ MFNavierStokesPreconditionGMGBase<dim>::initialize()
                 linear_solver_parameters.eig_estimation_cg_n_iterations;
               smoother_data[level].eigenvalue_algorithm = SmootherType::
                 AdditionalData::EigenvalueAlgorithm::power_iteration;
+              smoother_data[level].max_relaxation =
+                linear_solver_parameters.mg_smoother_max_relaxation;
               smoother_data[level].constraints.copy_from(
                 this->mg_operators[level]
                   ->get_system_matrix_free()

@@ -1905,6 +1905,9 @@ namespace Parameters
     /// MG smoother relaxation parameter
     double mg_smoother_relaxation = 0.5;
 
+    /// MG smoother relaxation parameter
+    double mg_smoother_max_relaxation = std::numeric_limits<double>::max();
+
     /// Type of preconditioner for the MG smoother
     enum class MultigridSmootherPreconditionerType : std::int8_t
     {

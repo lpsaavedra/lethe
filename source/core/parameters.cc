@@ -3596,6 +3596,12 @@ namespace Parameters
                           Patterns::Double(),
                           "mg smoother relaxation for lsmg or gcmg");
 
+        prm.declare_entry("mg smoother max relaxation",
+                          Patterns::Tools::Convert<double>::to_string(
+                            defaults.mg_smoother_max_relaxation),
+                          Patterns::Double(),
+                          "mg smoother max relaxation for lsmg or gcmg");
+
         declare_enum_entry(prm,
                            "mg smoother preconditioner type",
                            defaults.mg_smoother_preconditioner_type,
@@ -3805,6 +3811,8 @@ namespace Parameters
 
         mg_smoother_iterations = prm.get_integer("mg smoother iterations");
         mg_smoother_relaxation = prm.get_double("mg smoother relaxation");
+        mg_smoother_max_relaxation =
+          prm.get_double("mg smoother max relaxation");
 
         this->mg_smoother_preconditioner_type =
           string_to_enum<MultigridSmootherPreconditionerType>(
