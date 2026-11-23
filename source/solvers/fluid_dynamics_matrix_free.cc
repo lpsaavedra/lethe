@@ -1101,7 +1101,7 @@ MFNavierStokesPreconditionGMGBase<dim>::reinit(
       // Create mappings for each level
       if (this->simulation_parameters.mortar_parameters.enable)
         this->mappings.resize(this->minlevel, this->maxlevel);
-      else if (false /* PM: TODO (deformed mesh) */)
+      else if (this->simulation_parameters.mesh.grid_deformed)
         this->mappings.resize(this->minlevel, this->maxlevel);
 
       // Apply constraints and create mg operators for each level
@@ -1145,7 +1145,7 @@ MFNavierStokesPreconditionGMGBase<dim>::reinit(
 
               level_mapping = this->mappings[level];
             }
-          else if (false /* PM: TODO (deformed mesh) */)
+          else if (this->simulation_parameters.mesh.grid_deformed)
             {
               this->mappings[level] = std::make_shared<MappingQCache<dim>>(
                 this->dof_handlers[level].get_fe().degree);
@@ -2698,7 +2698,7 @@ FluidDynamicsMatrixFree<dim>::setup_dofs_fd()
   // If enabled, rotate rotor mapping
   this->rotate_rotor_mapping(false);
 
-  if (false /* PM: TODO (deformed mesh) */)
+  if (this->simulation_parameters.mesh.grid_deformed)
     {
       const double       deformation = 0.15;
       const unsigned int frequency   = 1;

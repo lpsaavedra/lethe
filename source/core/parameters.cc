@@ -3249,6 +3249,13 @@ namespace Parameters
       prm.declare_entry("grid type", defaults.grid_type);
       prm.declare_entry("grid arguments", defaults.grid_arguments);
 
+      prm.declare_entry("grid deformed",
+                        Patterns::Tools::Convert<bool>::to_string(
+                          defaults.grid_deformed),
+                        Patterns::Bool(),
+                        "Enable a deformed grid.");
+
+
       prm.declare_entry(
         "initial translation",
         Patterns::Tools::Convert<Tensor<1, spacedim>>::to_string(
@@ -3299,6 +3306,7 @@ namespace Parameters
 
       grid_type      = prm.get("grid type");
       grid_arguments = prm.get("grid arguments");
+      grid_deformed  = prm.get_bool("grid deformed");
 
       refine_until_target_size = prm.get_bool("enable target size");
       simplex                  = prm.get_bool("simplex");

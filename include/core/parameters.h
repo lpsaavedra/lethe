@@ -2056,6 +2056,9 @@ namespace Parameters
     /// Arguments of the GridTools
     std::string grid_arguments = "-1 : 1 : false";
 
+    /// Enable deformed mesh
+    bool grid_deformed = false;
+
     /// Initial refinement level of primitive mesh
     unsigned int initial_refinement = 0;
 
