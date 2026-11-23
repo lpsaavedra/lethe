@@ -97,6 +97,7 @@ PreconditionASM<VectorType>::PreconditionASM(
   , schwarz_type(parameters.mg_smoother_sm_type)
   , patch_type(parameters.mg_smoother_sm_patch_type)
   , closure_type(parameters.mg_smoother_sm_closure_type)
+  , patch_approximation_type(parameters.mg_smoother_sm_patch_approximation_type)
 {}
 
 template <typename VectorType>
@@ -498,19 +499,23 @@ PreconditionASM<VectorType>::build_blocks(
 
   for (unsigned int b = 0; b < blocks.size(); ++b)
     {
-      if (false) // TODO: introduce parameter
+      if (patch_approximation_type !=
+          Parameters::LinearSolver::MultigridSMPatchApproximationType::full)
         {
           const double tol = 1e-8;
 
-          if (true)
+          if (patch_approximation_type ==
+              Parameters::LinearSolver::MultigridSMPatchApproximationType::
+                sparse_schur_complement)
             {
               blocks[b] =
                 compute_schur_complement_matrix(blocks[b],
                                                 this->global_patches_ptr[b],
                                                 false);
             }
-
-          if (false)
+          else if (patch_approximation_type ==
+                   Parameters::LinearSolver::MultigridSMPatchApproximationType::
+                     velocity_block_diagonal)
             {
               for (unsigned int i = 0; i < this->global_patches_ptr[b][dim];
                    ++i)
@@ -519,7 +524,9 @@ PreconditionASM<VectorType>::build_blocks(
                   if (i != j)
                     blocks[b][i][j] = 0.0;
             }
-          else if (true)
+          else if (patch_approximation_type ==
+                   Parameters::LinearSolver::MultigridSMPatchApproximationType::
+                     velocity_pressure_block_diagonal)
             {
               for (unsigned int i = 0; i < this->global_patches_ptr[b][dim];
                    ++i)
@@ -536,7 +543,9 @@ PreconditionASM<VectorType>::build_blocks(
                   if (i != j)
                     blocks[b][i][j] = 0.0;
             }
-          else if (false)
+          else if (patch_approximation_type ==
+                   Parameters::LinearSolver::MultigridSMPatchApproximationType::
+                     pressure_block_diagonal)
             {
               for (unsigned int i = this->global_patches_ptr[b][dim];
                    i < this->global_patches_ptr[b][dim + 1];
@@ -552,7 +561,7 @@ PreconditionASM<VectorType>::build_blocks(
               if (std::abs(blocks[b][i][j]) < tol)
                 blocks[b][i][j] = 0.0;
 
-          if (true) // TODO: create statistics
+          if (false) // TODO: create statistics
             {
               unsigned int nnz = 0;
 

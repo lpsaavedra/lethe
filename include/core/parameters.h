@@ -1960,6 +1960,19 @@ namespace Parameters
     MultigridSMClosureType mg_smoother_sm_closure_type =
       MultigridSMClosureType::full_closure;
 
+    /// Schwarz method patch solve type
+    enum MultigridSMPatchApproximationType : std::uint8_t
+    {
+      full,
+      velocity_block_diagonal,
+      pressure_block_diagonal,
+      velocity_pressure_block_diagonal,
+      sparse_schur_complement
+    };
+
+    MultigridSMPatchApproximationType mg_smoother_sm_patch_approximation_type =
+      MultigridSMPatchApproximationType::full;
+
     /// Chebyshev smoother polynomial degree
     unsigned int mg_smoother_chebyshev_degree = 3;
 

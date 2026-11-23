@@ -329,6 +329,10 @@ private:
   /// Closure type
   const Parameters::LinearSolver::MultigridSMClosureType closure_type;
 
+  /// Patch solve type
+  const Parameters::LinearSolver::MultigridSMPatchApproximationType
+    patch_approximation_type;
+
   /// Internal destination vector with correct ghosting.
   mutable VectorType dst_internal;
 
