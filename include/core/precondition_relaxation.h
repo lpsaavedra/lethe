@@ -1,10 +1,263 @@
 #ifndef lethe_precondition_relaxation_h
 #define lethe_precondition_relaxation_h
 
+#include <deal.II/lac/full_matrix.h>
+#include <deal.II/lac/lapack_full_matrix.h>
 #include <deal.II/lac/precondition.h>
 
 namespace dealii
 {
+
+
+  namespace internal
+  {
+    // ------------------------------------------------------------
+    // 1. Optimal relaxation information
+    // ------------------------------------------------------------
+
+    struct OptimalRelaxation
+    {
+      double omega_opt       = 0.0;
+      double omega_critical  = 0.0;
+      double spectral_radius = 0.0;
+    };
+
+
+    // ------------------------------------------------------------
+    // 2. Arnoldi eigenvalue estimation
+    //
+    // Estimates eigenvalues of T = P^{-1} A.
+    // ------------------------------------------------------------
+
+    template <typename MatrixType,
+              typename VectorType,
+              typename PreconditionerType>
+    std::vector<std::complex<double>>
+    arnoldi_iteration(const MatrixType         &matrix,
+                      const VectorType         &initial_vector,
+                      const PreconditionerType &preconditioner,
+                      const unsigned int        n_iterations)
+    {
+      if (n_iterations == 0)
+        throw std::invalid_argument("Arnoldi requires at least one iteration.");
+
+      // Arnoldi basis vectors.
+      std::vector<VectorType> basis;
+      basis.reserve(n_iterations + 1);
+
+      basis.emplace_back();
+      basis.back().reinit(initial_vector);
+      basis.back() = initial_vector;
+
+      const double initial_norm = basis[0].l2_norm();
+
+      if (!(initial_norm > 0.0) || !std::isfinite(initial_norm))
+        throw std::runtime_error(
+          "Arnoldi requires a finite, nonzero initial vector.");
+
+      basis[0] /= initial_norm;
+
+      // Upper Hessenberg matrix.
+      FullMatrix<double> H(n_iterations + 1, n_iterations);
+
+      VectorType tmp;
+      VectorType w;
+
+      tmp.reinit(initial_vector);
+      w.reinit(initial_vector);
+
+      unsigned int m = 0;
+
+      for (unsigned int j = 0; j < n_iterations; ++j)
+        {
+          // Apply T = P^{-1} A.
+          matrix.vmult(tmp, basis[j]);
+          preconditioner.vmult(w, tmp);
+
+          const double norm_before = w.l2_norm();
+
+          if (!std::isfinite(norm_before))
+            throw std::runtime_error(
+              "Arnoldi encountered a non-finite vector norm.");
+
+          // Modified Gram-Schmidt with reorthogonalization.
+          for (unsigned int pass = 0; pass < 2; ++pass)
+            {
+              for (unsigned int i = 0; i <= j; ++i)
+                {
+                  const double hij = basis[i] * w;
+
+                  H(i, j) += hij;
+
+                  w.add(-hij, basis[i]);
+                }
+            }
+
+          const double beta = w.l2_norm();
+
+          if (!std::isfinite(beta))
+            throw std::runtime_error(
+              "Arnoldi encountered a non-finite residual norm.");
+
+          H(j + 1, j) = beta;
+
+          m = j + 1;
+
+          // Detect numerical breakdown.
+          const double tolerance =
+            100.0 * std::numeric_limits<double>::epsilon();
+
+          if (norm_before == 0.0 || beta <= tolerance * norm_before)
+            break;
+
+          // No additional basis vector is needed
+          // after the last Arnoldi step.
+          if (j + 1 == n_iterations)
+            break;
+
+          w /= beta;
+
+          basis.emplace_back();
+          basis.back().reinit(initial_vector);
+          basis.back() = w;
+        }
+
+      // Extract the square Hessenberg matrix.
+      LAPACKFullMatrix<double> H_m(m, m);
+
+      for (unsigned int i = 0; i < m; ++i)
+        for (unsigned int j = 0; j < m; ++j)
+          H_m(i, j) = H(i, j);
+
+      // Compute Ritz values.
+      H_m.compute_eigenvalues();
+
+      std::vector<std::complex<double>> eigenvalues(m);
+
+      for (unsigned int i = 0; i < m; ++i)
+        eigenvalues[i] = H_m.eigenvalue(i);
+
+      return eigenvalues;
+    }
+
+
+    // ------------------------------------------------------------
+    // 3. Compute optimal Richardson relaxation parameter
+    //
+    // omega_opt = argmin_{omega > 0}
+    //             max_i |1 - omega * lambda_i|
+    // ------------------------------------------------------------
+
+    inline OptimalRelaxation
+    compute_optimal_omega(const std::vector<std::complex<double>> &eigenvalues)
+    {
+      const bool do_ignore_negative_evs = true; // valid?
+
+      if (eigenvalues.empty())
+        throw std::invalid_argument(
+          "Cannot compute optimal omega from an empty spectrum.");
+
+      OptimalRelaxation info;
+
+      double omega_critical = std::numeric_limits<double>::infinity();
+
+      // Determine the spectral stability limit.
+      for (const auto &lambda : eigenvalues)
+        {
+          const double real_part = lambda.real();
+
+          if (do_ignore_negative_evs && real_part <= 0.0)
+            continue;
+
+          const double norm_squared = std::norm(lambda);
+
+          if (!std::isfinite(real_part) || !std::isfinite(norm_squared))
+            throw std::runtime_error("Non-finite eigenvalue encountered.");
+
+          // No strictly contractive positive Richardson
+          // parameter exists if Re(lambda) <= 0.
+          if (real_part <= 0.0)
+            throw std::runtime_error("Nonpositive real part detected in the "
+                                     "estimated spectrum of P^{-1}A.");
+
+          const double omega_i = 2.0 * real_part / norm_squared;
+
+          omega_critical = std::min(omega_critical, omega_i);
+        }
+
+      if (!(omega_critical > 0.0) || !std::isfinite(omega_critical))
+        throw std::runtime_error("Invalid critical relaxation parameter.");
+
+      info.omega_critical = omega_critical;
+
+      // Spectral radius of I - omega * P^{-1}A,
+      // evaluated using the estimated eigenvalues.
+      const auto spectral_radius = [&eigenvalues](const double omega) {
+        double rho = 0.0;
+
+        for (const auto &lambda : eigenvalues)
+          {
+            const double amplification = std::abs(1.0 - omega * lambda);
+
+            rho = std::max(rho, amplification);
+          }
+
+        return rho;
+      };
+
+      // Minimize the spectral radius using
+      // golden-section search.
+      //
+      // The objective is convex for real omega.
+      double left  = 0.0;
+      double right = omega_critical;
+
+      constexpr double phi = 0.6180339887498948482;
+
+      double x1 = right - phi * (right - left);
+      double x2 = left + phi * (right - left);
+
+      double f1 = spectral_radius(x1);
+      double f2 = spectral_radius(x2);
+
+      for (unsigned int iteration = 0; iteration < 100; ++iteration)
+        {
+          const double tolerance = 1.e-12 * std::max(1.0, omega_critical);
+
+          if (right - left <= tolerance)
+            break;
+
+          if (f1 > f2)
+            {
+              left = x1;
+
+              x1 = x2;
+              f1 = f2;
+
+              x2 = left + phi * (right - left);
+              f2 = spectral_radius(x2);
+            }
+          else
+            {
+              right = x2;
+
+              x2 = x1;
+              f2 = f1;
+
+              x1 = right - phi * (right - left);
+              f1 = spectral_radius(x1);
+            }
+        }
+
+      info.omega_opt = 0.5 * (left + right);
+
+      info.spectral_radius = spectral_radius(info.omega_opt);
+
+      return info;
+    }
+
+  } // namespace internal
+
   /**
    * Base class for other preconditioners. Here, only some common features
    * Jacobi, SOR and SSOR preconditioners are implemented. For preconditioning,
@@ -151,6 +404,13 @@ namespace dealii
     template <typename VectorType>
     EigenvalueInformation
     estimate_eigenvalues(const VectorType &src) const;
+
+    /**
+     * Estimate eigenvalues and set relaxation parameter.
+     */
+    template <typename VectorType>
+    internal::OptimalRelaxation
+    estimate_eigenvalues_general(const VectorType &src) const;
 
     /**
      * Return the relaxation parameter. This function also allows to return
@@ -365,11 +625,11 @@ namespace dealii
   MyPreconditionRelaxation<MatrixType, PreconditionerType>::
     estimate_eigenvalues(const VectorType &src) const
   {
-    Assert(eigenvalues_are_initialized == false, ExcInternalError());
+    // Assert(eigenvalues_are_initialized == false, ExcInternalError());
 
     EigenvalueInformation info;
 
-    if (data.relaxation == 0.0)
+    if (true)
       {
         VectorType solution_old, temp_vector1;
 
@@ -389,11 +649,60 @@ namespace dealii
              std::min(0.9 * info.max_eigenvalue_estimate,
                       info.min_eigenvalue_estimate));
 
-        const_cast<MyPreconditionRelaxation<MatrixType, PreconditionerType> *>(
-          this)
-          ->data.relaxation =
-          std::min(data.max_relaxation,
-                   2.0 / (alpha + info.max_eigenvalue_estimate));
+        if (data.relaxation == 0.0)
+          const_cast<
+            MyPreconditionRelaxation<MatrixType, PreconditionerType> *>(this)
+            ->data.relaxation =
+            std::min(data.max_relaxation,
+                     2.0 / (alpha + info.max_eigenvalue_estimate));
+      }
+
+    const_cast<MyPreconditionRelaxation<MatrixType, PreconditionerType> *>(this)
+      ->eigenvalues_are_initialized = true;
+
+    return info;
+  }
+
+  template <typename MatrixType, typename PreconditionerType>
+  template <typename VectorType>
+  inline internal::OptimalRelaxation
+  MyPreconditionRelaxation<MatrixType, PreconditionerType>::
+    estimate_eigenvalues_general(const VectorType &src) const
+  {
+    // Assert(eigenvalues_are_initialized == false, ExcInternalError());
+    Assert(A != nullptr, ExcNotInitialized());
+    Assert(data.preconditioner != nullptr, ExcNotInitialized());
+
+    internal::OptimalRelaxation info{};
+
+    if (true)
+      {
+        VectorType initial_vector;
+        initial_vector.reinit(src);
+
+        // Initialize the Arnoldi starting vector.
+        internal::set_initial_guess(initial_vector);
+        data.constraints.set_zero(initial_vector);
+
+        AssertThrow(initial_vector.l2_norm() > 0.0,
+                    ExcMessage("Arnoldi requires a nonzero initial vector."));
+
+        // Estimate eigenvalues of P^{-1} A using Arnoldi.
+        const auto eigenvalues = internal::arnoldi_iteration(
+          *A, initial_vector, *data.preconditioner, data.eig_cg_n_iterations);
+
+        // Compute the optimal Richardson relaxation parameter:
+        //
+        // omega_opt = argmin_{omega > 0}
+        //             max_i |1 - omega * lambda_i|
+        //
+        info = internal::compute_optimal_omega(eigenvalues);
+
+        if (data.relaxation == 0.0)
+          const_cast<
+            MyPreconditionRelaxation<MatrixType, PreconditionerType> *>(this)
+            ->data.relaxation =
+            std::min(data.max_relaxation, info.omega_opt) / data.safety_factor;
       }
 
     const_cast<MyPreconditionRelaxation<MatrixType, PreconditionerType> *>(this)

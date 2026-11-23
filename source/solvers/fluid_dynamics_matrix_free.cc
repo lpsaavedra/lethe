@@ -1632,6 +1632,8 @@ MFNavierStokesPreconditionGMGBase<dim>::initialize()
             {
               MGVectorType vec;
               this->mg_operators[level]->initialize_dof_vector(vec);
+              const auto gevs =
+                smoother->smoothers[level].estimate_eigenvalues_general(vec);
               const auto evs =
                 smoother->smoothers[level].estimate_eigenvalues(vec);
 
@@ -1641,6 +1643,10 @@ MFNavierStokesPreconditionGMGBase<dim>::initialize()
               this->pcout << "    Relaxation parameter: "
                           << smoother->smoothers[level].get_relaxation()
                           << std::endl;
+              this->pcout << "    Relaxation parameter (opt.): "
+                          << gevs.omega_opt << std::endl;
+              this->pcout << "    Relaxation parameter (critical): "
+                          << gevs.omega_critical << std::endl;
               this->pcout << "    Minimum eigenvalue: "
                           << evs.min_eigenvalue_estimate << std::endl;
               this->pcout << "    Maximum eigenvalue: "
